@@ -1,0 +1,2931 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tratamento de Incidentes de Segurança</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Bibliotecas para geração de PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <style>
+        :root {
+            --dark-blue: #000066; 
+            --red: #E0493E;
+            --orange: #DB832B;
+            --blue: #6666FF;
+            --green: #28CC28;
+            --purple: #8A2BE2;
+            --gray-panel: #00001f;
+            --table: #555550;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            margin: 0;
+            background-color: var(--dark-blue);
+            color: white;
+            display: flex; 
+            flex-direction: column;
+            height: 100vh; 
+            overflow: hidden;
+        }
+
+        /* Menu Hamburguer para PDF */
+        .pdf-menu {
+            position: fixed;
+            right: 20px;
+            top: 25px;
+            z-index: 1000;
+        }
+
+        .pdf-toggle {
+            background-color: var(--red);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            transition: 0.3s;
+            border: none;
+        }
+
+        .pdf-toggle:hover {
+            transform: scale(1.1);
+            background-color: var(--orange);
+        }
+
+        .pdf-dropdown {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 60px;
+            background: white;
+            border-radius: 8px;
+            min-width: 200px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+            z-index: 1001;
+        }
+
+        .pdf-dropdown.show {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .pdf-item {
+            display: block;
+            padding: 15px 20px;
+            color: #333;
+            text-decoration: none;
+            border-bottom: 1px solid #eee;
+            transition: 0.3s;
+            font-weight: 500;
+        }
+
+        .pdf-item:hover {
+            background-color: #f5f5f5;
+            color: var(--dark-blue);
+        }
+
+        .pdf-item i {
+            margin-right: 10px;
+            color: var(--red);
+        }
+
+        /* Botão de voltar */
+        .back-btn {
+            position: fixed;
+            left: 90px;
+            top: 25px;
+            background-color: var(--orange);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            transition: 0.3s;
+            border: none;
+            z-index: 1000;
+            display: none; /* Inicialmente escondido */
+        }
+
+        .back-btn:hover {
+            transform: scale(1.1);
+            background-color: var(--green);
+        }
+
+        .back-btn.show {
+            display: flex;
+        }
+
+        /* OSI Modal e Trigger */
+        .osi-trigger {
+            position: fixed; 
+            left: 20px; 
+            top: 25px;
+            background-color: var(--blue); 
+            color: white;
+            width: 50px; 
+            height: 50px; 
+            border-radius: 50%;
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            font-size: 24px; 
+            cursor: pointer; 
+            z-index: 1000;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3); 
+            transition: 0.3s;
+            border: none;
+        }
+        .osi-trigger:hover { 
+            transform: scale(1.1); 
+            background-color: var(--orange); 
+        }
+
+        .osi-modal {
+            display: none; 
+            position: fixed; 
+            z-index: 2000;
+            left: 0; 
+            top: 0; 
+            width: 100%; 
+            height: 100%;
+            background-color: rgba(0,0,0,0.9);
+            justify-content: center; 
+            align-items: center;
+        }
+        .osi-content {
+            background: white; 
+            padding: 25px; 
+            border-radius: 8px;
+            width: 85%; 
+            max-width: 900px; 
+            max-height: 90%;
+            text-align: center; 
+            position: relative; 
+            overflow-y: auto; 
+            color: black;
+        }
+        .osi-content img { 
+            max-width: 100%; 
+            border-radius: 4px; 
+            margin-bottom: 20px; 
+        }
+        .osi-description { 
+            text-align: left; 
+            background: #f8f9fa; 
+            padding: 15px; 
+            border-left: 5px solid var(--blue); 
+        }
+
+        /* Navegação e Cards */
+        .viewport { 
+            flex: 1; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            padding: 20px; 
+            overflow-y: auto; 
+            margin-top: 20px;
+        }
+        .content-card {
+            background: white; 
+            border-radius: 8px; 
+            padding: 30px;
+            width: 90%; 
+            max-width: 1200px; 
+            color: black;
+            display: none; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+            margin-bottom: 50px;
+        }
+        .active { 
+            display: block; 
+            animation: fadeIn 0.5s ease;
+        }
+
+        .nav-bar { 
+            background-color: var(--gray-panel); 
+            display: flex; 
+            padding: 10px; 
+            gap: 5px; 
+            justify-content: center; 
+            border-top: 2px solid #00001f; 
+            position: relative;
+            z-index: 999;
+        }
+        .nav-btn { 
+            flex: 1; 
+            max-width: 160px; 
+            padding: 12px 2px; 
+            border: none; 
+            font-weight: 700; 
+            cursor: pointer; 
+            font-size: 9px; 
+            text-transform: uppercase; 
+            color: white; 
+            transition: 0.3s; 
+        }
+        
+        /* Cores das Fases */
+        .c1 { background-color: var(--green); }
+        .c2 { background-color: var(--orange); }
+        .c3 { background-color: var(--red); }
+        .c4 { background-color: #E0493E; }
+        .c5 { background-color: var(--blue); }
+        .c6 { background-color: var(--blue); }
+        
+
+        .img-container { 
+            width: 100%; 
+            text-align: center; 
+            margin-bottom: 20px; 
+            background: #eee; 
+            padding: 10px 0; 
+        }
+        .img-container img { 
+            max-width: 100%; 
+            height: auto; 
+        }
+        
+        .btn-details { 
+            padding: 10px 20px; 
+            background: #222; 
+            color: white; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            margin: 10px 5px; 
+            font-weight: bold; 
+            transition: 0.3s;
+        }
+        .btn-details:hover {
+            background-color: var(--dark-blue);
+        }
+        
+        .extra-info { 
+            display: none; 
+            margin-top: 20px; 
+            border-top: 2px solid #eee; 
+            padding-top: 15px; 
+            text-align: left; 
+        }
+        
+        /* ESTILOS PARA TABELAS */
+        .tabela-evidencias {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+            font-size: 0.95em;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .tabela-evidencias thead tr {
+            background: linear-gradient(135deg, var(--table), #555550);
+            color: white;
+        }
+        
+        .tabela-evidencias th {
+            padding: 18px 15px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 1em;
+            border: none;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .tabela-evidencias tbody tr {
+            border-bottom: 1px solid #e0e0e0;
+            transition: all 0.2s ease;
+        }
+        
+        .tabela-evidencias tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        .tabela-evidencias tbody tr:hover {
+            background-color: #e8f4ff;
+            transform: translateY(-2px);
+        }
+        
+        .tabela-evidencias td {
+            padding: 16px 15px;
+            vertical-align: top;
+            border: none;
+        }
+        
+        .tabela-evidencias td:first-child {
+            font-weight: 600;
+            color: var(--dark-blue);
+            border-right: 2px solid #e0e0e0;
+        }
+        
+        .tabela-evidencias td:last-child {
+            color: #909190;
+            font-style: italic;
+        }
+        
+        .destaque-tabela {
+            background-color: #fff8e1;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 5px;
+            border-left: 4px solid #ffb300;
+        }
+        
+        @keyframes fadeIn { 
+            from { 
+                opacity: 0; 
+                transform: translateY(10px); 
+            } 
+            to { 
+                opacity: 1; 
+                transform: translateY(0); 
+            } 
+        }
+
+        /* Títulos das fases */
+        .phase-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #eee;
+        }
+
+        h2 {
+            margin: 0;
+        }
+        
+        /* Responsividade para tabelas */
+        @media (max-width: 768px) {
+            .tabela-evidencias {
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+            
+            .tabela-evidencias th,
+            .tabela-evidencias td {
+                min-width: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="osi-trigger" onclick="toggleOSI()"><i class="fas fa-layer-group"></i></div>
+    
+    <!-- Botão de voltar -->
+    <button class="back-btn" onclick="showPrincipal()" id="backButton">
+        <i class="fas fa-arrow-left"></i>
+    </button>
+
+    <!-- Menu Hamburguer para PDF -->
+    <div class="pdf-menu">
+        <button class="pdf-toggle" onclick="togglePDFMenu()">
+            <i class="fas fa-file-pdf"></i>
+        </button>
+        <div class="pdf-dropdown" id="pdfDropdown">
+            <a href="#" class="pdf-item" onclick="downloadPDF('fase1')">
+                <i class="fas fa-download"></i> Preparação
+            </a>
+            <a href="#" class="pdf-item" onclick="downloadPDF('fase2')">
+                <i class="fas fa-download"></i> Detecção
+            </a>
+            <a href="#" class="pdf-item" onclick="downloadPDF('fase3')">
+                <i class="fas fa-download"></i> Contenção
+            </a>
+            <a href="#" class="pdf-item" onclick="downloadPDF('fase4')">
+                <i class="fas fa-download"></i> Erradicação
+            </a>
+            <a href="#" class="pdf-item" onclick="downloadPDF('fase5')">
+                <i class="fas fa-download"></i> Recuperação
+            </a>
+            <a href="#" class="pdf-item" onclick="downloadPDF('fase6')">
+                <i class="fas fa-download"></i> Pós-Incidente
+            </a>
+            <a href="#" class="pdf-item" onclick="downloadPDF('completo')">
+                <i class="fas fa-download"></i> Guia Completo
+            </a>
+        </div>
+    </div>
+
+    <div id="osiModal" class="osi-modal" onclick="toggleOSI()">
+        <div class="osi-content" onclick="event.stopPropagation()">
+            <h2>Modelo OSI e Vetores de Ataques</h2>
+            <img src="camadaosi.png" alt="Camadas OSI">
+            <div class="osi-description">
+                <strong>Camadas Críticas:</strong>
+                <ul>
+                    <li>Ataques de Camada 7</li>
+                    <p>O <strong>HTTP Flood</strong> é um ataque DDoS que visa esgotar os recursos do servidor web enviando um grande volume de requisições HTTP aparentemente legítimas. Diferente de ataques volumétricos, ele não necessita de grande largura de banda, mas sim de capacidade computacional para processar cada requisição.</p>
+                    <div class="img-container">
+                        <img src="camada7.png" alt="Fluxograma Base">
+                    </div>
+                    <p>Um HTTP Flood é um ataque DDoS de Camada 7 (aplicação) que inunda servidores web com solicitações GET ou POST legítimas, consumindo recursos como CPU e memória para tornar sites indisponíveis. Por parecerem tráfego normal, são difíceis de detectar, frequentemente usando botnets para maximizar o impacto.</p>
+                    <dt><strong>Como Ataca:</strong></dt>
+                    <ul>
+                        <li>Botnets distribuídos enviam requisições HTTP GET ou POST simultaneamente</li>
+                        <li>Cada requisição é completa e válida, tornando difícil a distinção de tráfego normal</li>
+                        <li>Explora a lógica da aplicação, como buscas complexas ou uploads de arquivos</li>
+                        <li>Pode utilizar proxies ou TOR para mascarar origens</li>
+                        <li>Foca em endpoints específicos que consomem muitos recursos (ex: /search, /login)</li>
+                    </ul>
+                    <p>O <strong>Slowloris</strong> mantém o máximo de conexões abertas possível enviando requisições HTTP incompletas, consumindo todos os slots disponíveis no servidor web e impedindo conexões legítimas.</p>
+                    <ul>
+                        <li>Estabelece conexões HTTP normais com o servidor</li>
+                        <li>Envia headers parcialmente, mantendo a conexão aberta</li>
+                        <li>Periodicamente envia caracteres para evitar timeouts</li>
+                        <li>Cada conexão consome um slot no servidor (ex: Apache mantém 256 conexões)</li>
+                        <li>Com poucos recursos (1 máquina) pode derrubar servidores</li>
+                    </ul>
+                    <br>
+                    <li>Ataques de Camada 4 (Transporte)</li>
+                    <p>O <strong>SYN Flood</strong> explora o handshake de três vias do TCP enviando múltiplos pacotes SYN sem completar as conexões, preenchendo a tabela de conexões do servidor.</p>
+                    <dt><strong>Como Ataca:</strong></dt>
+                    <ul>
+                        <li>Envia pacotes SYN com IPs falsificados (spoofed)</li>
+                        <li>Servidor responde com SYN-ACK e aguarda ACK final</li>
+                        <li>Nunca envia ACK final, deixando conexão em SYN_RECEIVED</li>
+                        <li>Cada conexão pendente consome memória (ex: 256 bytes cada)</li>
+                        <li>Rápido esgotamento da tabela de conexões (ex: 65K slots)</li>
+                    </ul>
+                    <p>O <strong>UDP Flood</strong> envia massivamente pacotes UDP para portas aleatórias, forçando o servidor a processar cada pacote e responder com "Port Unreachable".</p>
+                    <dt><strong>Como Ataca:</strong></dt>
+                    <ul>
+                        <li>Gera pacotes UDP de tamanho variável (64-1500 bytes)</li>
+                        <li>Direciona para portas aleatórias ou específicas (DNS:53, NTP:123)</li>
+                        <li>IP fonte spoofed para dificultar bloqueio</li>
+                        <li>Consome largura de banda e CPU do servidor</li>
+                        <li>Pode ser amplificado usando serviços abertos</li>
+                    </ul>
+                    <br>
+                    <li>Ataques de Camada 3</li>
+                    <p>O <strong>ICMP Flood (Smurf/Ping Flood)</strong> faz um ataque volumétrico que envia pacotes ICMP Echo Request em massa, congestionando a conexão da vítima.</p>
+                    <dt><strong>Como Ataca:</strong></dt>
+                    <p><strong>Smurf Attack</strong>: Usa broadcast IP com IP spoofed da vítima</p>
+                    <ul>
+                        <li>Envia ping para endereço de broadcast (ex: 192.168.1.255)</li>
+                        <li>Todos os hosts respondem para a vítima</li>
+                        <li>Amplificação significativa</li>
+                    </ul>
+                    <p><strong>Ping Flood Direto</strong></p>
+                    <ul>
+                        <li>Botnet envia ICMP diretamente para vítima</li>
+                        <li>Alto volume (100k+ pacotes/segundo)</li>
+                        <li>Consome toda banda disponível</li>
+                    </ul>
+                    <p><strong>Ping of Death (histórico)</strong></p>
+                    <ul>
+                        <li>Pacotes ICMP > 65.535 bytes</li>
+                        <li>Causava buffer overflow em sistemas antigos</li>
+                    </ul>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="viewport">
+        <h1 style="text-align: center;">Tratamento de Incidente de Segurança</h1>
+        <p style="text-align: center; margin-top: -10px;">ATAQUES DoS/DDoS</p>
+        
+        <div id="principal" class="content-card active">
+            <div class="phase-title">
+                <h2 style="color: var(--dark-blue)">Visão Geral</h2>
+            </div>
+            <div class="img-container">
+                <img src="fluxograma geral.png" alt="Fluxograma Base">
+            </div>
+            <p style="text-align: center; font-size: 1.1em; margin-top: 20px;">
+                Selecione uma fase abaixo para ver os detalhes do procedimento de tratamento de incidentes DoS/DDoS.
+            </p>
+        </div>
+
+        <div id="fase1" class="content-card">
+            <div class="phase-title">
+                <h2 style="color: var(--green)">Fase 1: Preparação</h2>
+            </div>
+            <p>A fase de preparação é a fundação de toda resposta a incidentes DoS/DDoS. Realizada ANTES de qualquer ataque ocorrer, ela determina o sucesso ou fracasso da resposta. Foca em construir resiliência, estabelecer processos e preparar recursos humanos e técnicos.</p>
+            <div class="img-container"><img src="preparacao.png" alt="Fluxo Preparação"></div>
+            <button class="btn-details" onclick="toggleDetails('d1')">VER PROCEDIMENTOS ↓</button>
+            <div id="d1" class="extra-info">
+                <h3>1. PROTEÇÃO DE BORDA E CND</h3>
+                <p>Sistemas especializados que filtrem tráfego malicioso antes que chegue à infraestrutura da universidade.</p>
+                <dt><strong>Para que serve:</strong></dt>
+                <dd>Identificação e catalogação de todos os sistemas, serviços, aplicações e dados essenciais para a operação. Inclui mapeamento de dependências internas (entre sistemas) e externas (provedores terceiros, APIs, CDNs).</dd>
+                <br>
+                <dt><strong>Funções Principais</strong></dt>
+                <ul>
+                    <li>Filtragem de Tráfego Malicioso: Remove ataques volumétricos antes que sobrecarreguem os servidores internos</li>
+                    <li>Distribuição Geográfica: Replica conteúdo em múltiplos datacenters globais, dificultando ataques concentrados</li>
+                    <li>Cache Inteligente: Armazena conteúdo estático, reduzindo carga nos servidores originais</li>
+                    <li>Inspeção Profunda de Pacotes: Analisa tráfego em tempo real para identificar padrões maliciosos</li>
+                </ul>
+                <p><strong>Como funciona na Prática</strong></p>
+                <ul>
+                    <li>Todo tráfego passa primeiro pelos servidores da CDN/proteção</li>
+                    <li>Sistemas analisam padrões e aplicam regras de mitigação</li>
+                    <li>Tráfego legítimo é encaminhado; malicioso é bloqueado</li>
+                    <li>Durante picos legítimos (matrículas), a CDN absorve a carga</li>
+                </ul>
+                <p><strong>Benefícios para a Universidade</strong></p>
+                <ul>
+                    <li>Mantém portais online mesmo durante ataques massivos</li>
+                    <li>Melhora performance para usuários geograficamente distribuídos</li>
+                    <li>Reduz custos com infraestrutura (menos servidores necessários)</li>
+                    <li>Fornece analytics detalhados sobre tráfego e ameaças</li>
+                </ul>
+                <h3>2. MAPEAMENTO DE BANDA</h3>
+                <p>Processo de medir e documentar os padrões normais de consumo de rede da universidade.</p>
+                <dt><strong>Funções Principais</strong></dt>
+                <ul>
+                    <li>Estabelecer Baseline: Definir o que é "normal" para cada serviço e horário</li>
+                    <li>Configurar Alertas Inteligentes: Criar regras de detecção baseadas em dados reais</li>
+                    <li>Otimizar Rate Limiting: Definir limites precisos que bloqueiam ataques sem afetar usuários legítimos</li>
+                    <li>Planejamento de Capacidade: Saber quando expandir infraestrutura</li>
+                </ul>
+                <dt><strong>Aplicação Prática:</strong></dt>
+                <ul>
+                    <li>Antes: Rate limit genérico (ex: 100 req/segundo por IP)</li>
+                    <li>Depois: Rate limit inteligente baseado em:
+                        <ul>
+                            <li>IPs de laboratórios: 500 req/segundo (muitos alunos)</li>
+                            <li>IPs residenciais: 50 req/segundo</li>
+                            <li>Endpoint /login: 5 req/minuto por IP (prevenção brute force)</li>
+                            <li>Período de matrículas: limites aumentados em 300%</li>
+                        </ul>
+                    </li>
+                </ul>
+                <br>
+                <dt><strong>Benefícios para a Universidade:</strong></dt>
+                <ul>
+                    <li>Detecção mais rápida de anomalias (minutos vs. horas)</li>
+                    <li>Redução de 90% em falsos positivos</li>
+                    <li>Otimização de recursos (não compra banda desnecessária)</li>
+                    <li>Melhor experiência do usuário (limites adequados)</li>
+                </ul>
+                <h3>3. PLANO DE REDUNDÂNCIA</h3>
+                <p>Contrato formal que define obrigações e responsabilidades dos provedores</p>
+                <dt><strong>Funções Principais:</strong></dt>
+                <ul>
+                    <li>Continuidade Operacional: Garantir que serviços críticos permaneçam online</li>
+                    <li>Distribuição de Carga: Dividir tráfego entre múltiplos caminhos</li>
+                    <li>Resiliência a Ataques: Um link atacado não derruba toda a operação</li>
+                    <li>Manutenção sem Downtime: Substituir componentes sem afetar serviços</li>
+                </ul>
+                <p><strong>Benefícios para a Universidade:</strong></p>
+                <ul>
+                    <li>Downtime reduzido de horas para minutos</li>
+                    <li>Capacidade de absorver ataques maiores</li>
+                    <li>Manutenção programada sem afetar serviços</li>
+                    <li>Conformidade com requisitos de continuidade</li>
+                </ul>
+                <h3>4. ACORDOS DE SLA</h3>
+                <p>Contrato formal que define obrigações e responsabilidades dos provedores</p>
+                <dt><strong>Funções Principais:</strong></dt>
+                <ul>
+                    <li>Garantia de Suporte: Provedor OBRIGADO a ajudar durante incidentes</li>
+                    <li>Definição de Expectativas: Todos sabem o que fazer e quando</li>
+                    <li>Redução de Tempo de Resposta: Canais prioritários para emergências</li>
+                    <li>Métrica de Performance: Base para medir qualidade do serviço</li>
+                </ul>
+                <p><strong>Benefícios para a Universidade:</strong></p>
+                <ul>
+                    <li>Resposta 4x mais rápida durante incidentes</li>
+                    <li>Redução de estresse da equipe técnica</li>
+                    <li>Previsibilidade de custos (sem surpresas)</li>
+                    <li>Relacionamento estruturado com provedores</li>
+                    <li>Conformidade com políticas de governança</li>
+                </ul>
+            </div>
+        </div>
+
+        <div id="fase2" class="content-card">
+            <div class="phase-title">
+                <h2 style="color: var(--orange)">Fase 2: Detecção</h2>
+            </div>
+            <p>Fase crítica onde o ataque é identificado, validado e caracterizado. A velocidade e precisão nesta fase determinam a extensão do dano.</p>
+            <div class="img-container"><img src="deteccao.png" alt="Fluxo Detecção"></div>
+            <button class="btn-details" onclick="toggleDetails('d2')">VER ANÁLISE ↓</button>
+            <div id="d2" class="extra-info">
+                <h3>SINAIS DE ALERTA</h3>
+                <dt><strong>Anomalias de Volume</strong></dt>
+                <p>Mudanças drásticas e inexplicáveis na quantidade de dados trafegando.</p>
+                <dt><strong>Explicação detalhada</strong></dt>
+                <ul>
+                    <li>Largura de Banda (Gbps): Quantidade de dados por segundo. Normal: 1-2 Gbps. Alerta: 10+ Gbps repentino.</li>
+                    <li>Taxa de Pacotes (PPS): Número de pacotes individuais por segundo. Alta PPS pode sobrecarregar roteadores mesmo com pouca banda.</li>
+                    <li>Saturação dos Links: Quando a capacidade máxima do link é atingida (ex: link de 10 Gbps operando a 9.8 Gbps).</li>
+                </ul>
+                <dt><strong>Indisponibilidade de Serviço</strong></dt>
+                <p>Serviços críticos da universidade não estão respondendo adequadamente.</p>
+                <dt><strong>Códigos HTTP específicos:</strong></dt>
+                <ul>
+                    <li>502 Bad Gateway: Servidor intermediário (proxy/load balancer) não consegue conectar ao servidor final</li>
+                    <li>503 Service Unavailable: Servidor sobrecarregado, recusando novas conexões</li>
+                    <li>504 Gateway Timeout: Timeout na comunicação entre servidores</li>
+                </ul>
+                <dt><strong>Serviços da UFRGS a observar:</strong></dt>
+                <br>
+                <dd><strong>→ SEI (Sistema Eletrônico de Informações)</strong></dd>
+                <ul>
+                    <li>Processos administrativos, Documentos oficiais, Tramitações internas</li>
+                </ul>
+                <dd><strong>→ Moodle (Ambiente Virtual de Aprendizagem)</strong></dd>
+                <ul>
+                    <li>Aulas online, Materiais didáticos, Avaliações</li>
+                </ul>
+                <dd><strong>→ Portal do Aluno</strong></dd>
+                <ul>
+                    <li>Matrículas, Históricos, Boletos</li>
+                </ul>
+                <dt><strong>Exaustão de Recursos</strong></dt>
+                <p>Servidores usando 100% de capacidade com poucos usuários reais.</p>
+                <dt><strong>Características de ataque de Camada 7 (Aplicação):</strong></dt>
+                <ul>
+                    <li>Baixo volume, alto impacto: 1.000 req/segundo podem derrubar servidor</li>
+                    <li>Ataques "inteligentes": Exploram lógica da aplicação, não apenas volume</li>
+                    <li>Difíceis de detectar: Parecem usuários legítimos</li>
+                </ul>
+                <dt><strong>● Padrões de Tráfego Incomuns</strong></dt>
+                <p>Tráfego que não se encaixa no perfil normal da universidade.</p>
+                <dt><strong>Exemplo de Tráfego anormal</strong></dt>
+                <ul>
+                    <li>ICMP Flood (ping massivo)</li>
+                    <li>UDP em portas aleatórias</li>
+                    <li>DNS amplification (53/UDP)</li>
+                    <li>NTP amplification (123/UDP)</li>
+                </ul>
+                <h4>→ PROCESSO DE TOMADA DE DECISÃO</h4>
+                <dt><strong>Metodologia para confirmar se realmente é um ataque DDoS.</strong></dt>
+                <p>Fontes de Telemetria para Análise:</p>
+                <dt><strong>O que analisar:</strong></dt>
+                <ul>
+                    <li>Top talkers (IPs que mais enviam dados)</li>
+                    <li>Protocolos mais usados</li>
+                    <li>Portas de destino</li>
+                    <li>Padrões temporais</li>
+                </ul>
+                <dt><strong>Exemplo de análise normal</strong></dt>
+                <ul>
+                    <li>Top protocol: HTTPS (80%)</li>
+                    <li>Top port: 443/TCP</li>
+                    <li>Distribuição geográfica: Predominantemente Brasil</li>
+                </ul>
+                <dt><strong>Exemplo de análise ataque:</strong></dt>
+                <ul>
+                    <li>Top protocol: UDP (95%)</li>
+                    <li>Top port: 123/UDP (NTP)</li>
+                    <li>Distribuição: Global, sem padrão</li>
+                </ul>
+                <dt><strong>Métricas chave:</strong></dt>
+                <ul>
+                    <li>Interface utilization (uso do link)</li>
+                    <li>Packet drops (pacotes descartados)</li>
+                    <li>Error rates (taxa de erro)</li>
+                    <li>CPU dos dispositivos de rede</li>
+                </ul>
+                <dt><strong>Limites de alerta:</strong></dt>
+                <ul>
+                    <li>Link utilization > 80% por 5 minutos</li>
+                    <li>Packet drops > 1% por 10 minutos</li>
+                    <li>Router CPU > 70% por 15 minutos</li>
+                </ul>
+                <h4>→ Critérios de Confirmação:</h4>
+                <p><strong>Análise de Legitimidade</strong></p>
+                <ul>
+                    <li>O tráfego segue padrões conhecidos de usuários?</li>
+                    <li>Há evento institucional justificando pico?</li>
+                    <li>IPs são de redes conhecidas/confiáveis?</li>
+                    <li>User-Agents são de browsers reais?</li>
+                </ul>
+                <h3>● Classificação de Gravidade:</h3>
+                <dt><strong>Nível 1 (Baixo)</strong></dt>
+                <ul>
+                    <li>Impacto: Serviço degradado</li>
+                    <li>Duração: &lt; 30 minutos</li>
+                    <li>Área afetada: Serviço único</li>
+                    <li>Ação: Monitoramento reforçado</li>
+                </ul>
+                <dt><strong>Nível 2 (Médio)</strong></dt>
+                <ul>
+                    <li>Impacto: Serviço parcialmente indisponível</li>
+                    <li>Duração: 30-120 minutos</li>
+                    <li>Área afetada: Múltiplos serviços</li>
+                    <li>Ação: Acionar equipe, contatar ISP</li>
+                </ul>
+                <dt><strong>Nível 3 (Alto)</strong></dt>
+                <ul>
+                    <li>Impacto: Serviço completamente indisponível</li>
+                    <li>Duração: &gt; 120 minutos</li>
+                    <li>Área afetada: Toda infraestrutura</li>
+                    <li>Ação: Plano de contingência total, comunicar diretoria</li>
+                </ul>
+            </div>
+        </div>
+
+        <div id="fase3" class="content-card">
+            <div class="phase-title">
+                <h2 style="color: var(--red)">Fase 3: Contenção</h2>
+            </div>
+            <p>Fase de ação imediata para limitar o dano e restaurar serviços básicos, focando em parar o sangramento antes da cura completa.</p>
+            <div class="img-container"><img src="contencao.png" alt="Fluxo Contenção"></div>
+            <button class="btn-details" onclick="toggleDetails('d3')">ANÁLISE E TABELAS ↓</button>
+            <div id="d3" class="extra-info">
+                <h3>VISÃO GERAL DA FASE DE ANÁLISE</h3>
+                <p>Serve para compreender completamente o ataque para responder adequadamente e prevenir futuras ocorrências.</p>
+                <dt><strong>O que a equipe do CPD precisa determinar:</strong></dt>
+                <div class="img-container"><img src="tabela.png" alt="tabela"></div>
+                
+                <h4>→ EVIDÊNCIAS PRIORITÁRIAS</h4>
+                <dt><strong>Logs de Tráfego de Rede</strong></dt>
+                <p>Registros detalhados do fluxo de dados pela infraestrutura de rede.</p>
+                <div class="img-container"><img src="texto.png" alt="texto"></div>
+                
+                <h4>→ Logs do Firewall e Servidores</h4>
+                <p>Registros de quais portas e serviços foram alvo do ataque.</p>
+                <dt><strong>Análise por camada: Camada de Rede (Portas)</strong></dt>
+                <dt><strong>Portas mais atacadas:</strong></dt>
+                <ul>
+                    <li>80/TCP (HTTP) - Ataque volumétrico básico</li>
+                    <li>443/TCP (HTTPS) - Tráfego criptografado</li>
+                    <li>53/UDP (DNS) - Amplification attacks</li>
+                    <li>123/UDP (NTP) - Reflection attacks</li>
+                    <li>22/TCP (SSH) - Tentativas de acesso</li>
+                </ul>
+                <dt><strong>Camada de Aplicação (Serviços)</strong></dt>
+                <dt><strong>Serviços da UFRGS</strong></dt>
+                <ul>
+                    <li>HTTP/HTTPS (Web):
+                        <ul>
+                            <li>moodle.ufrgs.br:443</li>
+                            <li>portal.ufrgs.br:443</li>
+                            <li>sei.ufrgs.br:443</li>
+                        </ul>
+                    </li>
+                </ul>
+                <dt><strong>Serviços Específicos:</strong></dt>
+                <ul>
+                    <li>VPN (ssl.ufrgs.br:443)</li>
+                    <li>Email (smtp.ufrgs.br:25)</li>
+                    <li>DNS (dns.ufrgs.br:53)</li>
+                </ul>
+                
+                <h4>→ Registros de Conexão (NetFlow)</h4>
+                <p>Rastreamento do caminho do ataque através da internet.</p>
+                <dt><strong>O que o NetFlow revela: Rota do Ataque</strong></dt>
+                <ul>
+                    <li>Origem aparente: 41.5.6.7 (Egito)</li>
+                    <li>Primeiro salto: ASN 12345 (Telecom Egypt)</li>
+                    <li>Segundo salto: ASN 67890 (DE-CIX Frankfurt)</li>
+                    <li>Terceiro salto: ASN 54321 (Embratel Brasil)</li>
+                    <li>Destino: ASN 263237 (UFRGS)</li>
+                </ul>
+
+                <h4>→ Logs de Erro da Aplicação</h4>
+                <p>Como os sistemas específicos da UFRGS se comportaram durante o ataque.</p>
+                <dt><strong>Análise por sistema:</strong></dt>
+                <dd>SEI (Sistema Eletrônico de Informações)</dd>
+                <dt><strong>Erros típicos durante DDoS:</strong></dt>
+                <ul>
+                    <li>14:25:01 SEI-DB-01: "Too many connections" (1040)</li>
+                    <li>14:30:15 SEI-APP-01: "Connection timeout after 30s"</li>
+                    <li>14:35:22 SEI-WEB-01: "Apache worker exhaustion"</li>
+                </ul>
+                <dt><strong>Moodle (ambiente virtual)</strong></dt>
+                <ul>
+                    <li>Usuário logado → Sessão perdida</li>
+                    <li>Upload de arquivo → Timeout</li>
+                    <li>Quiz online → Submissão falha</li>
+                    <li>Fórum de discussão → Não carrega</li>
+                </ul>
+                <dt><strong>→ Momento exato da interrupção</strong></dt>
+                <div class="img-container"><img src="logs.png" alt="logs"></div>
+                
+                <h4>→ Relatórios do Provedor de Internet</h4>
+                <p>Visão externa da saturação dos links.</p>
+                <h4>• Informações críticas do ISP</h4>
+                <ul>
+                    <li>
+                        <dt><strong>Saturação do Link</strong></dt>
+                        <ul>
+                            <li>Link contratado: 10 Gbps dedicado</li>
+                            <li>Utilização normal: 2-3 Gbps (30%)</li>
+                            <li>Durante ataque: 9.8 Gbps (98%)</li>
+                            <li>Packet loss: 15% (normal: 0.1%)</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <dt><strong>Ações do ISP</strong></dt>
+                        <ul>
+                            <li>14:05: Alerta automático de tráfego anormal</li>
+                            <li>14:10: Engenharia de rede notificada</li>
+                            <li>14:15: BGP blackholing considerado</li>
+                            <li>14:20: Mitigation on-demand ativada</li>
+                            <li>14:30: Pico máximo registrado</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <dt><strong>Recomendações Técnicas</strong></dt>
+                        <ul>
+                            <li>Ataque tipo: Volumétrico UDP</li>
+                            <li>Porta alvo: 443 (HTTPS)</li>
+                            <li>Origem: Global (50+ países)</li>
+                        </ul>
+                    </li>
+                </ul>
+                <dt><strong>Recomendação:</strong></dt>
+                <ul>
+                    <li>Ativar scrubbing service</li>
+                    <li>BGP diversion para limpeza</li>
+                    <li>Rate limiting em borda</li>
+                </ul>
+
+                <!-- TABELA DE COLETA DE EVIDÊNCIAS -->
+                <h3 style="margin-top: 40px; color: var(--red);">TABELA DE COLETA DE EVIDÊNCIAS</h3>
+                <p>Esta tabela resume as ações e evidências necessárias para análise completa do incidente:</p>
+                
+                <table class="tabela-evidencias">
+                    <thead>
+                        <tr>
+                            <th>AÇÕES</th>
+                            <th>EVIDÊNCIAS PRIORITÁRIAS</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Identificar o tamanho do ataque</td>
+                            <td>
+                                Gráficos de largura de banda e relatórios de picos de tráfego.
+                                <div class="destaque-tabela">
+                                    <strong>Exemplo:</strong> Pico de 50 Gbps às 14:30, 10x acima do normal
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Descobrir o método de ataque</td>
+                            <td>
+                                Análise de pacotes (inundação de dados ou excesso de pedidos L7)
+                                <div class="destaque-tabela">
+                                    <strong>Exemplo:</strong> 95% UDP na porta 123 (NTP amplification)
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Determinar o período da queda</td>
+                            <td>
+                                Registros de horário (timestamps) de queda e restabelecimento dos serviços.
+                                <div class="destaque-tabela">
+                                    <strong>Exemplo:</strong> Queda: 14:30:01 - Restauração: 15:45:30
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Identificar a origem do ataque</td>
+                            <td>
+                                Lista de endereços IP ou países (Geo-IP) emissores do tráfego
+                                <div class="destaque-tabela">
+                                    <strong>Exemplo:</strong> 50.000+ IPs de 100 países diferentes
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Preservar registros para análise</td>
+                            <td>
+                                Cópias dos logs de segurança e registros dos painéis de monitoramento.
+                                <div class="destaque-tabela">
+                                    <strong>Exemplo:</strong> PCAP completo + logs de firewall + NetFlow
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- MAPEAMENTO TÉCNICO (PADRÕES DE ATAQUE) -->
+                <h3 style="margin-top: 40px; color: var(--red);">MAPEAMENTO TÉCNICO (PADRÕES DE ATAQUE)</h3>
+                
+                <h4>→ Táticas Identificadas:</h4>
+                <ul>
+                    <li><strong>Inundação (Flooding):</strong> Envio massivo de tráfego para saturar recursos</li>
+                    <li><strong>Esgotamento de Recursos:</strong> Consumir capacidade de processamento dos servidores</li>
+                    <li><strong>Interrupção de Serviço:</strong> Impedir completamente o acesso aos sistemas</li>
+                </ul>
+
+                <h4>→ Técnicas Específicas:</h4>
+                
+                <table class="tabela-evidencias">
+                    <thead>
+                        <tr>
+                            <th>TÉCNICA</th>
+                            <th>CARACTERÍSTICAS</th>
+                            <th>IDENTIFICAÇÃO</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Inundação de UDP/TCP</strong></td>
+                            <td>
+                                UDP Flood: Protocolo connectionless, portas aleatórias<br>
+                                TCP SYN Flood: Handshake incompleto, tabela de conexões cheia
+                            </td>
+                            <td>
+                                Alto tráfego UDP múltiplas portas<br>
+                                Muitos SYN sem ACK final
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Ataques de Reflexão DNS</strong></td>
+                            <td>
+                                Query DNS pequena com IP spoofed<br>
+                                Amplificação significativa (até 70x)
+                            </td>
+                            <td>
+                                Tráfego entrada: respostas DNS<br>
+                                Porta origem: 53/UDP<br>
+                                Pacotes grandes (3.000-4.000 bytes)
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Ataques de Camada 7 (HTTP Flood)</strong></td>
+                            <td>
+                                Requisições HTTP aparentemente legítimas<br>
+                                Foco em endpoints que consomem recursos
+                            </td>
+                            <td>
+                                User-Agents legítimos<br>
+                                Cookies presentes<br>
+                                Intervalos aleatórios entre requisições
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <!-- INSTRUÇÕES PARA A EQUIPE -->
+                <h4 style="margin-top: 30px; color: var(--dark-blue);">→ Instruções para a Equipe do CPD:</h4>
+                <div style="background-color: #f0f8ff; padding: 20px; border-radius: 8px; border-left: 4px solid var(--blue);">
+                    <p><strong>Procedimento de Análise:</strong></p>
+                    <ol>
+                        <li>Coletar todas as evidências listadas na tabela acima</li>
+                        <li>Priorizar logs de rede e firewalls para identificação rápida</li>
+                        <li>Usar NetFlow para rastreamento de origem</li>
+                        <li>Documentar timestamps exatos de queda e recuperação</li>
+                        <li>Preservar evidências para análise forense posterior</li>
+                        <li>Consultar relatórios do ISP para validação externa</li>
+                    </ol>
+                    <p><strong>Prazo:</strong> Análise inicial deve ser concluída em até 30 minutos após detecção.</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="fase4" class="content-card">
+            <div class="phase-title">
+                <h2 style="color: #E0493E">Fase 4: Erradicação</h2>
+            </div>
+            <p>Fase focada em eliminar completamente as causas raiz do ataque e remover qualquer resquício malicioso dos sistemas.</p>
+            <div class="img-container"><img src="erradicacao.png" alt="Fluxo Erradicação"></div>
+            <button class="btn-details" onclick="toggleDetails('d4')">MEDIDAS DE ERADICAÇÃO ↓</button>
+            <div id="d4" class="extra-info">
+                <h3>PROCEDIMENTOS DE ERRADICAÇÃO</h3>
+                
+                <table class="tabela-evidencias">
+                    <thead>
+                        <tr>
+                            <th>AÇÃO</th>
+                            <th>DESCRIÇÃO</th>
+                            <th>FERRAMENTAS/EXECUÇÃO</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Identificar vetores remanescentes</strong></td>
+                            <td>Buscar componentes de ataque que persistiram após contenção</td>
+                            <td>Nessus, Qualys, análise de logs (ELK Stack)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Corrigir vulnerabilidades exploradas</strong></td>
+                            <td>Aplicar patches, configurações ou workarounds para falhas</td>
+                            <td>WSUS, SCCM, Ansible para automação</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Eliminar conexões persistentes</strong></td>
+                            <td>Remover conexões maliciosas remanescentes nos sistemas</td>
+                            <td>netstat, scripts de limpeza, análise forense</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Bloquear vetores de amplificação</strong></td>
+                            <td>Medidas contra vetores específicos (DNS, NTP, memcached)</td>
+                            <td>Desativar recursão DNS pública, rate limit em serviços UDP</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Remover artefatos maliciosos</strong></td>
+                            <td>Limpeza de scripts ou configurações deixadas pelo atacante</td>
+                            <td>Antivirus/EDR (CrowdStrike, SentinelOne)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Revisar regras de firewall/WAF</strong></td>
+                            <td>Otimização das regras implementadas durante contenção</td>
+                            <td>AlgoSec, FireMon, análise de conflitos</td>
+                        </tr>
+                    </tbody>
+                </table>
+                                <!-- ELIMINAÇÃO DE PONTOS DE EXPOSIÇÃO ATIVA -->
+                <h3 style="margin-top: 40px; color: var(--dark-blue);">ELIMINAÇÃO DE PONTOS DE EXPOSIÇÃO ATIVA</h3>
+                
+                <div style="background-color: #fff8f8; padding: 20px; border-radius: 8px; border-left: 4px solid var(--red); margin-bottom: 25px;">
+                    <h4>● Bloquear acessos maliciosos</h4>
+                    <p>Impedir permanentemente que IPs identificados como atacantes enviem dados para a rede da UFRGS.</p>
+                    
+                    <div style="background-color: white; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                        <strong>Procedimentos técnicos:</strong>
+                        <ul>
+                            <li>Extrair lista de IPs atacantes dos logs de firewall</li>
+                            <li>Aplicar bloqueio permanente via ACLs (Access Control Lists)</li>
+                            <li>Adicionar IPs à blacklist dos sistemas de segurança</li>
+                            <li>Notificar ISP sobre IPs maliciosos para bloqueio na origem</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div style="background-color: #fff8f8; padding: 20px; border-radius: 8px; border-left: 4px solid var(--orange); margin-bottom: 25px;">
+                    <h4>● Invalidar conexões suspeitas</h4>
+                    <p>Derrubar conexões travadas ou abertas apenas para consumir memória dos servidores do CPD.</p>
+                    
+                    <div style="background-color: white; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                        <strong>Comandos de limpeza:</strong>
+                        <div style="background-color: #2d2d2d; color: #f8f8f2; padding: 15px; border-radius: 5px; font-family: monospace; margin: 10px 0;">
+                            # Listar conexões ativas<br>
+                            netstat -an | grep ESTABLISHED<br><br>
+                            
+                            # Matar conexões de IPs específicos<br>
+                            tcpkill host 192.168.1.100<br><br>
+                            
+                            # Limpar conexões antigas no Apache<br>
+                            service apache2 restart<br><br>
+                            
+                            # Limpar tabela de conexões TCP<br>
+                            echo 1 > /proc/sys/net/ipv4/tcp_tw_recycle
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="background-color: #fff8f8; padding: 20px; border-radius: 8px; border-left: 4px solid var(--purple); margin-bottom: 25px;">
+                    <h4>● Limpar filtros de entrada</h4>
+                    <p>Remover lixo digital acumulado nos equipamentos de rede durante a inundação.</p>
+                    
+                    <div style="background-color: white; padding: 15px; border-radius: 5px; margin: 10px 0;">
+                        <strong>Equipamentos a limpar:</strong>
+                        <ul>
+                            <li><strong>Roteadores de borda:</strong> Limpar tabelas de roteamento temporárias</li>
+                            <li><strong>Firewalls:</strong> Remover regras temporárias de emergência</li>
+                            <li><strong>Load Balancers:</strong> Limpar sessões persistentes maliciosas</li>
+                            <li><strong>Switches:</strong> Limpar tabelas MAC inundadas</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- CORREÇÃO DE VULNERABILIDADES DE REDE -->
+                <h3 style="margin-top: 40px; color: var(--dark-blue);">CORREÇÃO DE VULNERABILIDADES DE REDE</h3>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px;">
+                    <div style="background-color: #f0f8ff; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
+                        <h4 style="color: var(--blue);">● Ajustar Firewall</h4>
+                        <p>Revisar regras de acesso aos sistemas, aplicando o <strong>princípio do privilégio mínimo</strong>.</p>
+                        <ul>
+                            <li>Remover regras de "qualquer para qualquer"</li>
+                            <li>Implementar regras específicas por serviço</li>
+                            <li>Revisar políticas de NAT (Network Address Translation)</li>
+                            <li>Auditar regras antigas e não utilizadas</li>
+                        </ul>
+                    </div>
+                    
+                    <div style="background-color: #f0f8ff; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
+                        <h4 style="color: var(--blue);">● Limites de velocidade</h4>
+                        <p>Configurar regras que impedem que um único acesso consuma toda a banda de internet da universidade.</p>
+                        <ul>
+                            <li>Rate limiting por IP de origem</li>
+                            <li>Limites por protocolo (HTTP, FTP, etc.)</li>
+                            <li>Controle de banda por serviço</li>
+                            <li>QoS (Quality of Service) para tráfego crítico</li>
+                        </ul>
+                    </div>
+                    
+                    <div style="background-color: #f0f8ff; padding: 20px; border-radius: 8px; border: 1px solid #ddd;">
+                        <h4 style="color: var(--blue);">● Atualizar proteções automáticas</h4>
+                        <p>Ajustar sistemas para reconhecimento automático de ataques similares.</p>
+                        <ul>
+                            <li>Atualizar assinaturas de IPS/IDS</li>
+                            <li>Ajustar thresholds de detecção</li>
+                            <li>Implementar machine learning para detecção</li>
+                            <li>Criar playbooks automatizados de resposta</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- TABELA 12: PROCEDIMENTOS DE ERRADICAÇÃO -->
+                <h3 style="margin-top: 40px; color: var(--red);">TABELA 12: PROCEDIMENTOS DE ERRADICAÇÃO PARA ATAQUES DDoS</h3>
+                <p style="color: #666; margin-bottom: 20px;">Procedimentos organizados por objetivo e responsabilidade:</p>
+                
+                <table class="tabela-evidencias">
+                    <thead>
+                        <tr>
+                            <th width="20%">OBJETIVO DA AÇÃO</th>
+                            <th width="50%">PROCEDIMENTOS DE ERRADICAÇÃO</th>
+                            <th width="30%">RESPONSÁVEL</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Parar o ataque</strong></td>
+                            <td>
+                                Bloquear IPs maliciosos e ativar filtros de limpeza (Scrubbing)
+                                <div class="destaque-tabela">
+                                    <strong>Detalhamento:</strong><br>
+                                    1. Identificar IPs atacantes via NetFlow<br>
+                                    2. Aplicar ACLs nos roteadores de borda<br>
+                                    3. Ativar scrubbing via ISP/CDN<br>
+                                    4. Monitorar eficácia do bloqueio
+                                </div>
+                            </td>
+                            <td>
+                                <div style="background-color: #e3f2fd; padding: 10px; border-radius: 5px; text-align: center;">
+                                    <strong>Equipe de Redes</strong><br>
+                                    <small>NOC - Nível 3</small>
+                                </div>
+                            </td>
+                        </tr>
+                        
+                        <tr>
+                            <td><strong>Liberar os sistemas</strong></td>
+                            <td>
+                                Encerrar conexões travadas e limpar a memória dos servidores
+                                <div class="destaque-tabela">
+                                    <strong>Detalhamento:</strong><br>
+                                    1. Identificar processos consumindo recursos<br>
+                                    2. Matar conexões maliciosas<br>
+                                    3. Restart controlado de serviços<br>
+                                    4. Limpar caches e buffers
+                                </div>
+                            </td>
+                            <td>
+                                <div style="background-color: #f3e5f5; padding: 10px; border-radius: 5px; text-align: center;">
+                                    <strong>Administradores de TI</strong><br>
+                                    <small>SysAdmin / DevOps</small>
+                                </div>
+                            </td>
+                        </tr>
+                        
+                        <tr>
+                            <td><strong>Fechar brechas</strong></td>
+                            <td>
+                                Atualizar regras do Firewall e do WAF (Proteção de Portais)
+                                <div class="destaque-tabela">
+                                    <strong>Detalhamento:</strong><br>
+                                    1. Auditar regras de firewall atuais<br>
+                                    2. Ajustar políticas do WAF<br>
+                                    3. Implementar rate limiting<br>
+                                    4. Validar novas regras em staging
+                                </div>
+                            </td>
+                            <td>
+                                <div style="background-color: #e8f5e8; padding: 10px; border-radius: 5px; text-align: center;">
+                                    <strong>Segurança da Informação</strong><br>
+                                    <small>CSIRT / Security Ops</small>
+                                </div>
+                            </td>
+                        </tr>
+                        
+                        <tr>
+                            <td><strong>Proteger a internet</strong></td>
+                            <td>
+                                Ajustar limites de velocidade e tráfego com o provedor
+                                <div class="destaque-tabela">
+                                    <strong>Detalhamento:</strong><br>
+                                    1. Negociar BGP com ISP para filtragem<br>
+                                    2. Configurar QoS em links principais<br>
+                                    3. Implementar traffic shaping<br>
+                                    4. Monitorar uso de banda por aplicação
+                                </div>
+                            </td>
+                            <td>
+                                <div style="background-color: #fff3e0; padding: 10px; border-radius: 5px; text-align: center;">
+                                    <strong>Gestor de Infraestrutura</strong><br>
+                                    <small>Infraestrutura e Cloud</small>
+                                </div>
+                            </td>
+                        </tr>
+                        
+                        <tr>
+                            <td><strong>Limpar a rede interna</strong></td>
+                            <td>
+                                Remover vírus de computadores infectados na rede acadêmica
+                                <div class="destaque-tabela">
+                                    <strong>Detalhamento:</strong><br>
+                                    1. Escanear rede interna por malware<br>
+                                    2. Isolar máquinas comprometidas<br>
+                                    3. Remover software malicioso<br>
+                                    4. Educar usuários sobre segurança
+                                </div>
+                            </td>
+                            <td>
+                                <div style="background-color: #fce4ec; padding: 10px; border-radius: 5px; text-align: center;">
+                                    <strong>Suporte Técnico</strong><br>
+                                    <small>Help Desk / Field Support</small>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="3" style="text-align: center; font-style: italic; padding: 15px; background-color: #f9f9f9;">
+                                <strong>Fonte:</strong> Elaborado pelo autor | Última atualização: <span id="data-atual"></span>
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+                
+                <script>
+                    // Adiciona data atual no rodapé da tabela
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const data = new Date();
+                        const options = { day: '2-digit', month: '2-digit', year: 'numeric' };
+                        document.getElementById('data-atual').textContent = data.toLocaleDateString('pt-BR', options);
+                    });
+                </script>
+                
+                <!-- VERIFICAÇÃO PÓS-ERRADICAÇÃO -->
+                <h3 style="margin-top: 40px; color: var(--dark-blue);">VERIFICAÇÃO PÓS-ERRADICAÇÃO</h3>
+                
+                <div style="background-color: #f0fff0; padding: 25px; border-radius: 8px; border-left: 4px solid var(--green); margin-top: 20px;">
+                    <h4 style="color: #006600;">Checklist de Verificação</h4>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-top: 20px;">
+                        <div style="background-color: white; padding: 15px; border-radius: 5px; border: 1px solid #ddd;">
+                            <h5>✅ Confirmar remoção de pontos de exposição</h5>
+                            <ul>
+                                <li>IPs atacantes bloqueados permanentemente</li>
+                                <li>Conexões maliciosas encerradas</li>
+                                <li>Filtros temporários removidos</li>
+                                <li>Logs de segurança limpos</li>
+                            </ul>
+                        </div>
+                        
+                        <div style="background-color: white; padding: 15px; border-radius: 5px; border: 1px solid #ddd;">
+                            <h5>✅ Validar credenciais comprometidas</h5>
+                            <ul>
+                                <li>Senhas de administrador alteradas</li>
+                                <li>Tokens de API revogados</li>
+                                <li>Certificados SSL verificados</li>
+                                <li>Acessos de serviço auditados</li>
+                            </ul>
+                        </div>
+                        
+                        <div style="background-color: white; padding: 15px; border-radius: 5px; border: 1px solid #ddd;">
+                            <h5>✅ Testar controles de acesso</h5>
+                            <ul>
+                                <li>Firewall rules testadas</li>
+                                <li>WAF configurado corretamente</li>
+                                <li>Rate limiting funcionando</li>
+                                <li>Monitoramento ativo</li>
+                            </ul>
+                        </div>
+                        
+                        <div style="background-color: white; padding: 15px; border-radius: 5px; border: 1px solid #ddd;">
+                            <h5>✅ Verificar bloqueio de vetores</h5>
+                            <ul>
+                                <li>Portas vulneráveis fechadas</li>
+                                <li>Protocolos maliciosos bloqueados</li>
+                                <li>Serviços de amplificação desativados</li>
+                                <li>Botnets identificadas e bloqueadas</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 25px; padding: 15px; background-color: #e8f5e8; border-radius: 5px;">
+                        <h5>📋 Procedimento de Verificação Final:</h5>
+                        <ol>
+                            <li><strong>Teste de penetração controlado:</strong> Simular ataque para verificar defesas</li>
+                            <li><strong>Análise forense:</strong> Verificar se não há resíduos maliciosos</li>
+                            <li><strong>Validação com usuários:</strong> Confirmar funcionamento normal dos serviços</li>
+                            <li><strong>Documentação:</strong> Registrar todas as ações realizadas</li>
+                            <li><strong>Assinatura:</strong> Responsáveis assinam a conclusão da erradicação</li>
+                        </ol>
+                    </div>
+                </div>
+                
+                <!-- RESUMO DA FASE DE ERRADICAÇÃO -->
+                <div style="margin-top: 40px; padding: 25px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 10px;">
+                    <h3 style="color: white; margin-top: 0;">RESUMO DA FASE DE ERRADICAÇÃO</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                        <div>
+                            <h4 style="font-size: 2em; margin: 0; text-align: center;">🎯</h4>
+                            <p style="text-align: center;"><strong>Objetivo</strong><br>Eliminar completamente a causa raiz</p>
+                        </div>
+                        <div>
+                            <h4 style="font-size: 2em; margin: 0; text-align: center;">⏱️</h4>
+                            <p style="text-align: center;"><strong>Duração</strong><br>2-4 horas após contenção</p>
+                        </div>
+                        <div>
+                            <h4 style="font-size: 2em; margin: 0; text-align: center;">👥</h4>
+                            <p style="text-align: center;"><strong>Equipe</strong><br>5 áreas técnicas especializadas</p>
+                        </div>
+                        <div>
+                            <h4 style="font-size: 2em; margin: 0; text-align: center;">✅</h4>
+                            <p style="text-align: center;"><strong>Checklist</strong><br>25 itens de verificação</p>
+                        </div>
+                    </div>
+                    <p style="margin-top: 20px; font-style: italic; text-align: center;">
+                        <strong>Importante:</strong> A erradicação não está completa até que todas as verificações pós-erradicação sejam aprovadas.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div id="fase5" class="content-card">
+            <div class="phase-title">
+                <h2 style="color: var(--blue)">Fase 5: Recuperação</h2>
+            </div>
+            <p>Fase de retorno seguro às operações normais, garantindo que os serviços estejam completamente funcionais e estáveis.</p>
+            <div class="img-container"><img src="recuperacao.png" alt=" Recuperação"></div>
+            <button class="btn-details" onclick="toggleDetails('d5')">PROCESSO DE RECUPERAÇÃO ↓</button>
+            <div id="d5" class="extra-info">
+                <h3>PROCEDIMENTOS DE RECUPERAÇÃO</h3>
+                
+                <table class="tabela-evidencias">
+                    <thead>
+                        <tr>
+                            <th>ETAPA</th>
+                            <th>DESCRIÇÃO</th>
+                            <th>VERIFICAÇÃO</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Restauração gradual de serviços</strong></td>
+                            <td>Retorno progressivo do tráfego direto, removendo scrubbing</td>
+                            <td>Monitoramento durante transição, planos de rollback</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Verificação de integridade</strong></td>
+                            <td>Confirmação de que dados não foram corrompidos ou alterados</td>
+                            <td>Checksums, hashes, validação de backups</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Monitoramento estendido 24/7</strong></td>
+                            <td>Vigilância intensificada para detectar reataques</td>
+                            <td>Dashboards dedicados, alertas sensíveis, relatórios horários</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Remover regras temporárias</strong></td>
+                            <td>Eliminação cuidadosa das medidas defensivas da crise</td>
+                            <td>Inventário de regras, testes de funcionalidade</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Comunicação final</strong></td>
+                            <td>Informação formal sobre resolução do incidente</td>
+                            <td>Templates pré-aprovados, canais formais</td>
+                        </tr>
+                    </tbody>
+                </table>
+                                <!-- INTRODUÇÃO DA FASE DE RECUPERAÇÃO -->
+                <div style="background-color: #e8f4ff; padding: 25px; border-radius: 8px; border-left: 5px solid var(--blue); margin-bottom: 30px;">
+                    <h3 style="color: var(--dark-blue); margin-top: 0;">VISÃO GERAL DA RECUPERAÇÃO</h3>
+                    <p style="font-size: 1.1em; line-height: 1.6;">
+                        A recuperação foca em <strong>restabelecer a disponibilidade plena dos sistemas e da conectividade</strong>, 
+                        enquanto se implementam <strong>filtros reforçados</strong> para prevenir que novos picos de tráfego derrubem 
+                        os serviços no futuro. Esta fase é crítica para garantir que a universidade retorne às operações normais 
+                        com maior resiliência do que antes do ataque.
+                    </p>
+                </div>
+                
+                <!-- RESTAURAÇÃO DE CONTROLES DE ACESSO E TRÁFEGO -->
+                <h3 style="color: var(--dark-blue); border-bottom: 3px solid var(--blue); padding-bottom: 10px;">RESTAURAÇÃO DE CONTROLES DE ACESSO E TRÁFEGO</h3>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 25px; margin-top: 25px;">
+                    
+                    <!-- CARD 1: Revisar regras de filtragem -->
+                    <div style="background: white; border-radius: 10px; padding: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-top: 4px solid #667eea;">
+                        <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                            <div style="width: 40px; height: 40px; background-color: #667eea; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px;">
+                                <i class="fas fa-shield-alt" style="color: white; font-size: 1.2em;"></i>
+                            </div>
+                            <h4 style="color: #667eea; margin: 0;">Revisar regras de filtragem<br><small>(WAF/Firewall)</small></h4>
+                        </div>
+                        <p>Refinar as configurações de segurança baseadas nos padrões observados durante o ataque.</p>
+                        
+                        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 6px; margin-top: 15px; border-left: 3px solid #667eea;">
+                            <strong>Objetivo:</strong> Garantir que o tráfego legítimo flua sem latência enquanto as assinaturas maliciosas permanecem bloqueadas.
+                        </div>
+                        
+                        <div style="margin-top: 15px;">
+                            <strong>Ações específicas:</strong>
+                            <ul>
+                                <li>Analisar logs do WAF para identificar falsos positivos</li>
+                                <li>Ajustar thresholds de detecção de anomalias</li>
+                                <li>Implementar regras específicas para serviços críticos da UFRGS</li>
+                                <li>Criar whitelist para IPs de laboratórios e campus</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <!-- CARD 2: Configurar alertas de telemetria -->
+                    <div style="background: white; border-radius: 10px; padding: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-top: 4px solid #4CAF50;">
+                        <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                            <div style="width: 40px; height: 40px; background-color: #4CAF50; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px;">
+                                <i class="fas fa-bell" style="color: white; font-size: 1.2em;"></i>
+                            </div>
+                            <h4 style="color: #4CAF50; margin: 0;">Configurar alertas de telemetria</h4>
+                        </div>
+                        <p>Ativar avisos automáticos para permitir reação antecipada antes da exaustão dos recursos.</p>
+                        
+                        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 6px; margin-top: 15px; border-left: 3px solid #4CAF50;">
+                            <strong>Objetivo:</strong> Detectar "Desvio de Baseline" para aumentos repentinos no volume de pacotes (PPS) ou largura de banda (Gbps).
+                        </div>
+                        
+                        <div style="margin-top: 15px;">
+                            <strong>Métricas a monitorar:</strong>
+                            <ul>
+                                <li><strong>PPS (Packets Per Second):</strong> Alerta acima de 100.000 pps</li>
+                                <li><strong>Banda (Gbps):</strong> Alerta acima de 80% da capacidade do link</li>
+                                <li><strong>Conexões simultâneas:</strong> Alerta acima de 50.000</li>
+                                <li><strong>Latência:</strong> Alerta acima de 500ms para serviços críticos</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <!-- CARD 3: Estabelecer limites de taxa -->
+                    <div style="background: white; border-radius: 10px; padding: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-top: 4px solid #FF9800;">
+                        <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                            <div style="width: 40px; height: 40px; background-color: #FF9800; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px;">
+                                <i class="fas fa-tachometer-alt" style="color: white; font-size: 1.2em;"></i>
+                            </div>
+                            <h4 style="color: #FF9800; margin: 0;">Estabelecer limites de taxa<br><small>(Rate Limiting)</small></h4>
+                        </div>
+                        <p>Ajustar as travas de segurança e políticas de Throttling para prevenir sobrecarga.</p>
+                        
+                        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 6px; margin-top: 15px; border-left: 3px solid #FF9800;">
+                            <strong>Objetivo:</strong> Evitar que a infraestrutura seja sobrecarregada por requisições excessivas vindas de fontes únicas ou botnets remanescentes.
+                        </div>
+                        
+                        <div style="margin-top: 15px;">
+                            <strong>Configurações recomendadas:</strong>
+                            <ul>
+                                <li><strong>IPs residenciais:</strong> 50 req/minuto por IP</li>
+                                <li><strong>Laboratórios da UFRGS:</strong> 500 req/minuto por subnet</li>
+                                <li><strong>Endpoint /login:</strong> 5 tentativas/minuto por IP</li>
+                                <li><strong>API pública:</strong> 100 req/minuto por aplicação</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <!-- CARD 4: Validação de Saúde do Sistema -->
+                    <div style="background: white; border-radius: 10px; padding: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-top: 4px solid #9C27B0;">
+                        <div style="display: flex; align-items: center; margin-bottom: 15px;">
+                            <div style="width: 40px; height: 40px; background-color: #9C27B0; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px;">
+                                <i class="fas fa-heartbeat" style="color: white; font-size: 1.2em;"></i>
+                            </div>
+                            <h4 style="color: #9C27B0; margin: 0;">Validação de Saúde do Sistema</h4>
+                        </div>
+                        <p>Monitorar a utilização de recursos para garantir que não há processos "zumbis" após o ataque.</p>
+                        
+                        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 6px; margin-top: 15px; border-left: 3px solid #9C27B0;">
+                            <strong>Objetivo:</strong> Garantir que o fim do ataque de rede não deixou processos travados internamente.
+                        </div>
+                        
+                        <div style="margin-top: 15px;">
+                            <strong>Recursos a verificar:</strong>
+                            <ul>
+                                <li><strong>CPU dos servidores:</strong> Manter abaixo de 70% em condições normais</li>
+                                <li><strong>Memória RAM:</strong> Verificar vazamentos de memória</li>
+                                <li><strong>Conexões de banco:</strong> Confirmar que todas as conexões estão saudáveis</li>
+                                <li><strong>Discos:</strong> Verificar espaço livre e I/O operations</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                </div>
+                
+                <!-- IMPLEMENTAÇÃO TÉCNICA -->
+                <div style="background-color: #2d2d2d; color: #f8f8f2; padding: 25px; border-radius: 8px; margin-top: 35px; font-family: 'Courier New', monospace;">
+                    <h4 style="color: #66d9ef; margin-top: 0;">EXEMPLOS DE IMPLEMENTAÇÃO TÉCNICA</h4>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px;">
+                        <div>
+                            <h5 style="color: #a6e22e;">NGINX Rate Limiting:</h5>
+                            <pre style="background-color: #1e1e1e; padding: 15px; border-radius: 5px; overflow-x: auto;">
+# /etc/nginx/nginx.conf
+limit_req_zone $binary_remote_addr zone=portal:10m rate=50r/s;
+
+location / {
+    limit_req zone=portal burst=20 nodelay;
+    proxy_pass http://backend;
+}
+
+location /login {
+    limit_req zone=portal burst=5;
+    limit_req_status 429;
+}</pre>
+                        </div>
+                        
+                        <div>
+                            <h5 style="color: #a6e22e;">Apache2 Security Headers:</h5>
+                            <pre style="background-color: #1e1e1e; padding: 15px; border-radius: 5px; overflow-x: auto;">
+# /etc/apache2/conf-enabled/security.conf
+Header always set X-Frame-Options "DENY"
+Header always set X-Content-Type-Options "nosniff"
+Header always set X-XSS-Protection "1; mode=block"
+Header always set Referrer-Policy "strict-origin"
+
+# Rate limiting mod
+&lt;Location "/"&gt;
+    SetOutputFilter RATE_LIMIT
+    SetEnv rate-limit 100
+&lt;/Location&gt;</pre>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 20px;">
+                        <h5 style="color: #a6e22e;">Zabbix Alert Configuration:</h5>
+                        <pre style="background-color: #1e1e1e; padding: 15px; border-radius: 5px; overflow-x: auto;">
+# Triggers para detecção precoce
+zabbix_agentd.conf:
+
+UserParameter=network.traffic.in,cat /proc/net/dev | grep eth0 | awk '{print $2}'
+UserParameter=network.traffic.out,cat /proc/net/dev | grep eth0 | awk '{print $10}'
+
+# Trigger: Tráfego > 80% do link por 5min
+{Template Net:net.if.in[eth0].avg(5m)} > 8000000000</pre>
+                    </div>
+                </div>
+                
+                <!-- TABELA 13: TESTES DE VALIDAÇÃO PÓS-ATAQUE -->
+                <h3 style="margin-top: 40px; color: var(--blue); border-bottom: 3px solid var(--blue); padding-bottom: 10px;">TABELA 13: TESTES DE VALIDAÇÃO PÓS-ATAQUE</h3>
+                <p style="color: #666; margin-bottom: 20px; font-style: italic;">
+                    Procedimentos de validação para garantir que os sistemas estão completamente recuperados e protegidos contra futuros ataques.
+                </p>
+                
+                <table class="tabela-evidencias">
+                    <thead>
+                        <tr>
+                            <th width="20%">TESTE</th>
+                            <th width="35%">OBJETIVO</th>
+                            <th width="35%">CRITÉRIO DE APROVAÇÃO</th>
+                            <th width="10%">STATUS</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Teste de Carga</strong></td>
+                            <td>Verificar se o sistema aguenta o volume normal de acessos acadêmicos</td>
+                            <td>Funcionamento estável sem lentidão ou timeouts</td>
+                            <td style="text-align: center;">
+                                <span class="status-badge" style="background-color: #4CAF50; color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.8em;">PENDENTE</span>
+                            </td>
+                        </tr>
+                        
+                        <tr>
+                            <td><strong>Validação de Filtros Anti-DDoS</strong></td>
+                            <td>Confirmar que o sistema de limpeza de tráfego está ativo e funcionando</td>
+                            <td>Tráfego malicioso sendo bloqueado automaticamente em tempo real</td>
+                            <td style="text-align: center;">
+                                <span class="status-badge" style="background-color: #4CAF50; color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.8em;">PENDENTE</span>
+                            </td>
+                        </tr>
+                        
+                        <tr>
+                            <td><strong>Teste de Regras de Firewall</strong></td>
+                            <td>Testar se as portas de entrada estão protegidas contra acessos não autorizados</td>
+                            <td>Apenas portas autorizadas (80, 443, 22) respondendo a scans</td>
+                            <td style="text-align: center;">
+                                <span class="status-badge" style="background-color: #4CAF50; color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.8em;">PENDENTE</span>
+                            </td>
+                        </tr>
+                        
+                        <tr>
+                            <td><strong>Auditoria de Logs</strong></td>
+                            <td>Confirmar que as tentativas de ataque estão sendo gravadas para análise forense</td>
+                            <td>100% dos eventos de ataque registrados nos logs com timestamps precisos</td>
+                            <td style="text-align: center;">
+                                <span class="status-badge" style="background-color: #4CAF50; color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.8em;">PENDENTE</span>
+                            </td>
+                        </tr>
+                        
+                        <tr>
+                            <td><strong>Backup de Rede</strong></td>
+                            <td>Validar a troca para um link de internet reserva em caso de falha</td>
+                            <td>Troca de conexão feita sem queda do sistema (failover < 60s)</td>
+                            <td style="text-align: center;">
+                                <span class="status-badge" style="background-color: #4CAF50; color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.8em;">PENDENTE</span>
+                            </td>
+                        </tr>
+                        
+                        <tr>
+                            <td><strong>Simulação de Ataque</strong></td>
+                            <td>Testar a reação contra uma nova inundação controlada em ambiente de testes</td>
+                            <td>Defesa bem-sucedida dentro do tempo esperado (mitigação < 5min)</td>
+                            <td style="text-align: center;">
+                                <span class="status-badge" style="background-color: #FF9800; color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.8em;">AGENDADO</span>
+                            </td>
+                        </tr>
+                        
+                        <tr>
+                            <td><strong>Validação de Performance</strong></td>
+                            <td>Verificar a velocidade do sistema para o usuário final após todas as mudanças</td>
+                            <td>Tempo de resposta dentro do padrão aceitável (< 3s para páginas)</td>
+                            <td style="text-align: center;">
+                                <span class="status-badge" style="background-color: #4CAF50; color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.8em;">PENDENTE</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="4" style="text-align: center; padding: 15px; background-color: #f0f8ff;">
+                                <strong>Legenda:</strong> 
+                                <span style="background-color: #4CAF50; color: white; padding: 2px 10px; border-radius: 10px; margin: 0 5px;">PENDENTE</span>
+                                <span style="background-color: #FF9800; color: white; padding: 2px 10px; border-radius: 10px; margin: 0 5px;">AGENDADO</span>
+                                <span style="background-color: #2196F3; color: white; padding: 2px 10px; border-radius: 10px; margin: 0 5px;">EM ANDAMENTO</span>
+                                <span style="background-color: #9C27B0; color: white; padding: 2px 10px; border-radius: 10px; margin: 0 5px;">CONCLUÍDO</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="4" style="text-align: center; font-style: italic; padding: 10px; background-color: #f9f9f9;">
+                                <strong>Fonte:</strong> Elaborado pelo autor | Última execução: <span id="data-teste">Não executado</span>
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+                
+                <!-- CHECKLIST INTERATIVO -->
+                <div style="margin-top: 30px; background-color: #f8f9fa; padding: 25px; border-radius: 8px; border: 1px solid #ddd;">
+                    <h4 style="color: var(--dark-blue);">📋 CHECKLIST INTERATIVO DE VALIDAÇÃO</h4>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-top: 20px;">
+                        <div style="background-color: white; padding: 15px; border-radius: 5px; border: 1px solid #ddd;">
+                            <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                                <input type="checkbox" id="check1" style="margin-right: 10px;">
+                                <label for="check1" style="font-weight: bold;">Firewall Reconfigurado</label>
+                            </div>
+                            <p style="font-size: 0.9em; margin: 5px 0 0 25px;">Regras baseadas no princípio do menor privilégio</p>
+                        </div>
+                        
+                        <div style="background-color: white; padding: 15px; border-radius: 5px; border: 1px solid #ddd;">
+                            <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                                <input type="checkbox" id="check2" style="margin-right: 10px;">
+                                <label for="check2" style="font-weight: bold;">WAF Otimizado</label>
+                            </div>
+                            <p style="font-size: 0.9em; margin: 5px 0 0 25px;">Assinaturas atualizadas com base no ataque</p>
+                        </div>
+                        
+                        <div style="background-color: white; padding: 15px; border-radius: 5px; border: 1px solid #ddd;">
+                            <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                                <input type="checkbox" id="check3" style="margin-right: 10px;">
+                                <label for="check3" style="font-weight: bold;">Alertas Configurados</label>
+                            </div>
+                            <p style="font-size: 0.9em; margin: 5px 0 0 25px;">Telemetria para desvios de baseline</p>
+                        </div>
+                        
+                        <div style="background-color: white; padding: 15px; border-radius: 5px; border: 1px solid #ddd;">
+                            <div style="display: flex; align-items: center; margin-bottom: 10px;">
+                                <input type="checkbox" id="check4" style="margin-right: 10px;">
+                                <label for="check4" style="font-weight: bold;">Rate Limiting Ativo</label>
+                            </div>
+                            <p style="font-size: 0.9em; margin: 5px 0 0 25px;">Limites configurados por tipo de usuário</p>
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 20px;">
+                        <button onclick="marcarTodos()" style="background-color: var(--blue); color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin-right: 10px;">
+                            <i class="fas fa-check-double"></i> Marcar Todos
+                        </button>
+                        <button onclick="desmarcarTodos()" style="background-color: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
+                            <i class="fas fa-undo"></i> Limpar
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- FORTALECIMENTO DA DISPONIBILIDADE -->
+                <div style="margin-top: 40px; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); padding: 30px; border-radius: 10px;">
+                    <h3 style="color: var(--dark-blue); text-align: center;">FORTALECIMENTO DA DISPONIBILIDADE DOS SERVIÇOS</h3>
+                    
+                    <div style="display: flex; align-items: center; margin-top: 25px;">
+                        <div style="flex: 1; padding-right: 20px;">
+                            <p style="font-size: 1.1em; line-height: 1.6;">
+                                O fortalecimento da disponibilidade dos serviços exige o <strong>uso de filtros de tráfego</strong> 
+                                e a <strong>classificação do que é prioritário</strong> para a universidade, garantindo que o uso 
+                                da internet seja <strong>vigiado em tempo real</strong> por meio de registros (logs) e análise de tráfego.
+                            </p>
+                            
+                            <div style="margin-top: 20px;">
+                                <h5>📊 Priorização de Tráfego na UFRGS:</h5>
+                                <ul>
+                                    <li><strong>Crítico (Nível 1):</strong> Portal do Aluno, Moodle, SEI - QoS máximo</li>
+                                    <li><strong>Alto (Nível 2):</strong> Email institucional, VPN, Bibliotecas digitais</li>
+                                    <li><strong>Médio (Nível 3):</strong> Sites institucionais, Intranet administrativa</li>
+                                    <li><strong>Baixo (Nível 4):</strong> Acesso geral à internet, downloads</li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <div style="flex: 1;">
+                            <div style="background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                                <h5 style="color: var(--blue); text-align: center;">⚡ Monitoramento em Tempo Real</h5>
+                                
+                                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 15px;">
+                                    <div style="text-align: center;">
+                                        <div style="font-size: 2em; color: #4CAF50;">99.8%</div>
+                                        <div style="font-size: 0.9em;">Uptime esperado</div>
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <div style="font-size: 2em; color: #2196F3;">< 3s</div>
+                                        <div style="font-size: 0.9em;">Tempo de resposta</div>
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <div style="font-size: 2em; color: #FF9800;">5 min</div>
+                                        <div style="font-size: 0.9em;">Detecção de anomalias</div>
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <div style="font-size: 2em; color: #9C27B0;">24/7</div>
+                                        <div style="font-size: 0.9em;">Monitoramento</div>
+                                    </div>
+                                </div>
+                                
+                                <div style="margin-top: 20px; text-align: center;">
+                                    <div style="display: inline-block; background-color: #e8f5e8; padding: 10px 20px; border-radius: 20px;">
+                                        <i class="fas fa-shield-alt" style="color: #4CAF50; margin-right: 8px;"></i>
+                                        <strong>SLA Garantido:</strong> 99.5% de disponibilidade
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- CONCLUSÃO DA FASE DE RECUPERAÇÃO -->
+                <div style="margin-top: 40px; text-align: center; padding: 30px; background-color: var(--dark-blue); color: white; border-radius: 10px;">
+                    <h3 style="color: white; margin-top: 0;">✅ FASE DE RECUPERAÇÃO CONCLUÍDA QUANDO:</h3>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-top: 25px;">
+                        <div>
+                            <div style="font-size: 3em; margin-bottom: 10px;">🎯</div>
+                            <p>Todos os testes da Tabela 13 foram aprovados</p>
+                        </div>
+                        <div>
+                            <div style="font-size: 3em; margin-bottom: 10px;">📈</div>
+                            <p>Métricas de performance retornaram aos níveis normais</p>
+                        </div>
+                        <div>
+                            <div style="font-size: 3em; margin-bottom: 10px;">🛡️</div>
+                            <p>Controles de segurança reforçados estão ativos</p>
+                        </div>
+                        <div>
+                            <div style="font-size: 3em; margin-bottom: 10px;">📋</div>
+                            <p>Checklist de validação completamente preenchido</p>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 30px; padding: 20px; background-color: rgba(255,255,255,0.1); border-radius: 8px;">
+                        <p style="font-style: italic;">
+                            <i class="fas fa-exclamation-triangle" style="margin-right: 10px;"></i>
+                            <strong>Importante:</strong> A fase de recuperação só pode ser considerada concluída após 
+                            24 horas de operação estável com as novas configurações de segurança.
+                        </p>
+                    </div>
+                </div>
+
+                <script>
+                    // Script para o checklist interativo
+                    function marcarTodos() {
+                        const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+                        checkboxes.forEach(checkbox => {
+                            checkbox.checked = true;
+                        });
+                        alert('Todos os itens do checklist foram marcados como concluídos!');
+                    }
+                    
+                    function desmarcarTodos() {
+                        const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+                        checkboxes.forEach(checkbox => {
+                            checkbox.checked = false;
+                        });
+                        alert('Checklist limpo. Reinicie a validação.');
+                    }
+                    
+                    // Data para a tabela
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const hoje = new Date();
+                        const options = { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' };
+                        document.getElementById('data-teste').textContent = hoje.toLocaleDateString('pt-BR', options);
+                    });
+                </script>
+            </div>
+        </div>
+
+        <div id="fase6" class="content-card">
+            <div class="phase-title">
+                <h2 style="color: var(--blue)">Fase 6: Pós-Incidente</h2>
+            </div>
+            <p>Fase de aprendizado e melhoria onde o incidente é analisado para fortalecer a postura de segurança futura.</p>
+            <div class="img-container"><img src="posincidente.png" alt=" Pós-Incidente"></div>
+            <button class="btn-details" onclick="toggleDetails('d6')">LIÇÕES APRENDIDAS ↓</button>
+                            <!-- INTRODUÇÃO DA FASE PÓS-INCIDENTE -->
+                <div style="background-color: #f0f8ff; padding: 30px; border-radius: 10px; border-left: 6px solid var(--blue); margin-bottom: 35px;">
+                    <h3 style="color: var(--dark-blue); margin-top: 0; text-align: center;">ANÁLISE PÓS-INCIDENTE: APRENDIZADO CONTÍNUO</h3>
+                    <p style="font-size: 1.1em; line-height: 1.7; text-align: center;">
+                        A análise pós-incidente foca em <strong>compreender a dinâmica do ataque</strong> para fortalecer a 
+                        infraestrutura da UFRGS e <strong>evitar que novas interrupções ocorram</strong>. Para uma investigação 
+                        de causa raiz eficaz, é necessário olhar além do volume de tráfego e entender as 
+                        <strong>lacunas na estratégia de defesa</strong>.
+                    </p>
+                    <div style="background-color: white; padding: 20px; border-radius: 8px; margin-top: 20px; border: 1px solid #ddd;">
+                        <h4 style="color: var(--red); text-align: center;">❓ PERGUNTAS-CHAVE DA ANÁLISE</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin-top: 15px;">
+                            <div style="background-color: #fff5f5; padding: 15px; border-radius: 6px; border-left: 4px solid var(--red);">
+                                <strong>Por que as ferramentas de proteção não mitigaram logo no início?</strong>
+                                <p style="margin: 8px 0 0 0; font-size: 0.95em;">
+                                    WAF, IPS, Scrubbing - Avaliar tempo de resposta e eficácia
+                                </p>
+                            </div>
+                            <div style="background-color: #fff5f5; padding: 15px; border-radius: 6px; border-left: 4px solid var(--red);">
+                                <strong>Por que os limiares de alerta não dispararam antes?</strong>
+                                <p style="margin: 8px 0 0 0; font-size: 0.95em;">
+                                    Thresholds configurados adequadamente? Baseline atualizada?
+                                </p>
+                            </div>
+                            <div style="background-color: #fff5f5; padding: 15px; border-radius: 6px; border-left: 4px solid var(--red);">
+                                <strong>O que permitiu que a disponibilidade fosse afetada?</strong>
+                                <p style="margin: 8px 0 0 0; font-size: 0.95em;">
+                                    Pontos únicos de falha? Capacidade insuficiente? Processos lentos?
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- AÇÕES DA FASE PÓS-INCIDENTE -->
+                <h3 style="color: var(--dark-blue); border-bottom: 3px solid var(--blue); padding-bottom: 10px;">AÇÕES DA FASE PÓS-INCIDENTE</h3>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 25px; margin-top: 25px;">
+                    
+                    <!-- AÇÃO 1: Documentar o Incidente -->
+                    <div style="background: white; border-radius: 10px; padding: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border: 2px solid #667eea;">
+                        <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                            <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #667eea, #764ba2); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px;">
+                                <i class="fas fa-file-alt" style="color: white; font-size: 1.5em;"></i>
+                            </div>
+                            <div>
+                                <h4 style="color: #667eea; margin: 0 0 5px 0;">Documentar o Incidente</h4>
+                                <p style="color: #666; margin: 0; font-size: 0.95em;">Registrar a linha do tempo completa</p>
+                            </div>
+                        </div>
+                        
+                        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 6px; margin-top: 15px;">
+                            <strong>Elementos obrigatórios do registro:</strong>
+                            <ul style="margin-top: 10px;">
+                                <li><strong>Primeira anomalia:</strong> Timestamp exato do primeiro pico de tráfego</li>
+                                <li><strong>Detecção:</strong> Quem detectou? Sistema automático ou humano?</li>
+                                <li><strong>Escalonamento:</strong> Tempo entre detecção e ação da equipe</li>
+                                <li><strong>Mitigação:</strong> Ações tomadas e tempo de resposta de cada uma</li>
+                                <li><strong>Recuperação:</strong> Momento exato do retorno à normalidade</li>
+                                <li><strong>Impacto:</strong> Serviços afetados, usuários impactados, duração</li>
+                            </ul>
+                        </div>
+                        
+                        <div style="margin-top: 20px; padding-top: 15px; border-top: 1px dashed #ddd;">
+                            <strong>📊 Métricas a registrar:</strong>
+                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 10px;">
+                                <div style="text-align: center; background-color: #e8f4ff; padding: 10px; border-radius: 5px;">
+                                    <div style="font-weight: bold; color: var(--blue);">MTTD</div>
+                                    <div style="font-size: 0.9em;">Mean Time To Detect</div>
+                                </div>
+                                <div style="text-align: center; background-color: #e8f4ff; padding: 10px; border-radius: 5px;">
+                                    <div style="font-weight: bold; color: var(--blue);">MTTR</div>
+                                    <div style="font-size: 0.9em;">Mean Time To Respond</div>
+                                </div>
+                                <div style="text-align: center; background-color: #e8f4ff; padding: 10px; border-radius: 5px;">
+                                    <div style="font-weight: bold; color: var(--blue);">MTTA</div>
+                                    <div style="font-size: 0.9em;">Mean Time To Acknowledge</div>
+                                </div>
+                                <div style="text-align: center; background-color: #e8f4ff; padding: 10px; border-radius: 5px;">
+                                    <div style="font-weight: bold; color: var(--blue);">MTBF</div>
+                                    <div style="font-size: 0.9em;">Mean Time Between Failures</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- AÇÃO 2: Identificar Pontos de Melhoria -->
+                    <div style="background: white; border-radius: 10px; padding: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border: 2px solid #4CAF50;">
+                        <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                            <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #4CAF50, #2E7D32); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px;">
+                                <i class="fas fa-chart-line" style="color: white; font-size: 1.5em;"></i>
+                            </div>
+                            <div>
+                                <h4 style="color: #4CAF50; margin: 0 0 5px 0;">Identificar Pontos de Melhoria</h4>
+                                <p style="color: #666; margin: 0; font-size: 0.95em;">Avaliar eficácia da resposta</p>
+                            </div>
+                        </div>
+                        
+                        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 6px; margin-top: 15px;">
+                            <strong>Áreas críticas para análise:</strong>
+                            <ul style="margin-top: 10px;">
+                                <li><strong>Assinaturas de ataque:</strong> Foram identificadas corretamente?</li>
+                                <li><strong>Escalonamento para provedor:</strong> Foi ágil o suficiente?</li>
+                                <li><strong>Capacidade dos links:</strong> Foram suficientes para o impacto residual?</li>
+                                <li><strong>Capacidade dos servidores:</strong> Aguardaram o pico ou colapsaram?</li>
+                                <li><strong>Comunicação:</strong> Todos os stakeholders foram informados no tempo certo?</li>
+                                <li><strong>Documentação:</strong> Playbooks foram seguidos? Estavam atualizados?</li>
+                            </ul>
+                        </div>
+                        
+                        <div style="margin-top: 20px; padding-top: 15px; border-top: 1px dashed #ddd;">
+                            <strong>🎯 Matriz de Avaliação:</strong>
+                            <table style="width: 100%; margin-top: 10px; font-size: 0.9em;">
+                                <thead>
+                                    <tr style="background-color: #e8f5e8;">
+                                        <th style="padding: 8px; text-align: left;">Área</th>
+                                        <th style="padding: 8px; text-align: center;">Nota (1-5)</th>
+                                        <th style="padding: 8px; text-align: center;">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td style="padding: 8px;">Detecção</td>
+                                        <td style="padding: 8px; text-align: center;">
+                                            <select style="width: 100%; padding: 5px; border-radius: 4px; border: 1px solid #ddd;">
+                                                <option>1 - Muito Ruim</option>
+                                                <option>2 - Ruim</option>
+                                                <option selected>3 - Regular</option>
+                                                <option>4 - Bom</option>
+                                                <option>5 - Excelente</option>
+                                            </select>
+                                        </td>
+                                        <td style="padding: 8px; text-align: center;">
+                                            <span style="background-color: #FF9800; color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.8em;">A MELHORAR</span>
+                                        </td>
+                                    </tr>
+                                    <tr style="background-color: #f9f9f9;">
+                                        <td style="padding: 8px;">Resposta</td>
+                                        <td style="padding: 8px; text-align: center;">
+                                            <select style="width: 100%; padding: 5px; border-radius: 4px; border: 1px solid #ddd;">
+                                                <option>1 - Muito Ruim</option>
+                                                <option>2 - Ruim</option>
+                                                <option>3 - Regular</option>
+                                                <option selected>4 - Bom</option>
+                                                <option>5 - Excelente</option>
+                                            </select>
+                                        </td>
+                                        <td style="padding: 8px; text-align: center;">
+                                            <span style="background-color: #4CAF50; color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.8em;">SATISFATÓRIO</span>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 8px;">Comunicação</td>
+                                        <td style="padding: 8px; text-align: center;">
+                                            <select style="width: 100%; padding: 5px; border-radius: 4px; border: 1px solid #ddd;">
+                                                <option>1 - Muito Ruim</option>
+                                                <option selected>2 - Ruim</option>
+                                                <option>3 - Regular</option>
+                                                <option>4 - Bom</option>
+                                                <option>5 - Excelente</option>
+                                            </select>
+                                        </td>
+                                        <td style="padding: 8px; text-align: center;">
+                                            <span style="background-color: #F44336; color: white; padding: 3px 8px; border-radius: 12px; font-size: 0.8em;">CRÍTICO</span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <!-- AÇÃO 3: Atualizar Processos -->
+                    <div style="background: white; border-radius: 10px; padding: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border: 2px solid #FF9800;">
+                        <div style="display: flex; align-items: center; margin-bottom: 20px;">
+                            <div style="width: 50px; height: 50px; background: linear-gradient(135deg, #FF9800, #EF6C00); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px;">
+                                <i class="fas fa-sync-alt" style="color: white; font-size: 1.5em;"></i>
+                            </div>
+                            <div>
+                                <h4 style="color: #FF9800; margin: 0 0 5px 0;">Atualizar Processos</h4>
+                                <p style="color: #666; margin: 0; font-size: 0.95em;">Revisar e melhorar políticas</p>
+                            </div>
+                        </div>
+                        
+                        <div style="background-color: #f8f9fa; padding: 15px; border-radius: 6px; margin-top: 15px;">
+                            <strong>Processos prioritários para revisão:</strong>
+                            <ul style="margin-top: 10px;">
+                                <li><strong>Políticas de Rate Limiting:</strong> Ajustar thresholds baseados no incidente</li>
+                                <li><strong>Listas de IPs bloqueados (Blacklists):</strong> Atualizar com IPs do ataque</li>
+                                <li><strong>Contatos de emergência:</strong> Verificar e atualizar lista de contatos</li>
+                                <li><strong>Provedores de trânsito IP:</strong> Revisar SLAs e procedimentos de acionamento</li>
+                                <li><strong>Serviços de mitigação em nuvem:</strong> Avaliar performance e custo-benefício</li>
+                                <li><strong>Playbooks de resposta:</strong> Incorporar lições aprendidas</li>
+                            </ul>
+                        </div>
+                        
+                        <div style="margin-top: 20px; padding-top: 15px; border-top: 1px dashed #ddd;">
+                            <strong>📅 Cronograma de Atualizações:</strong>
+                            <div style="margin-top: 10px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                    <span>Rate Limiting</span>
+                                    <span><strong>7 dias</strong></span>
+                                </div>
+                                <div style="height: 10px; background-color: #e0e0e0; border-radius: 5px; margin-bottom: 15px;">
+                                    <div style="width: 30%; height: 100%; background-color: #4CAF50; border-radius: 5px;"></div>
+                                </div>
+                                
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                    <span>Blacklists</span>
+                                    <span><strong>24h</strong></span>
+                                </div>
+                                <div style="height: 10px; background-color: #e0e0e0; border-radius: 5px; margin-bottom: 15px;">
+                                    <div style="width: 100%; height: 100%; background-color: #4CAF50; border-radius: 5px;"></div>
+                                </div>
+                                
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                    <span>Playbooks</span>
+                                    <span><strong>14 dias</strong></span>
+                                </div>
+                                <div style="height: 10px; background-color: #e0e0e0; border-radius: 5px; margin-bottom: 15px;">
+                                    <div style="width: 10%; height: 100%; background-color: #FF9800; border-radius: 5px;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- REUNIÃO DE LIÇÕES APRENDIDAS -->
+                <div style="margin-top: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px;">
+                    <h3 style="color: white; text-align: center; margin-top: 0;">📋 REUNIÃO DE LIÇÕES APRENDIDAS</h3>
+                    <p style="text-align: center; font-size: 1.1em;">
+                        <strong>Após a normalização, é obrigatório reunir os envolvidos</strong> (Segurança, Infraestrutura de Rede e Gestão) 
+                        para uma análise de Lições Aprendidas.
+                    </p>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 25px;">
+                        <div style="background-color: rgba(255,255,255,0.1); padding: 20px; border-radius: 8px; backdrop-filter: blur(10px);">
+                            <h4 style="color: white; text-align: center;">✅ O QUE FUNCIONOU</h4>
+                            <ul>
+                                <li>Detecção automática do pico de tráfego</li>
+                                <li>Resposta rápida do provedor de mitigação</li>
+                                <li>Comunicação interna da equipe técnica</li>
+                                <li>Backup de links funcionando como esperado</li>
+                                <li>Documentação disponível e acessível</li>
+                            </ul>
+                        </div>
+                        
+                        <div style="background-color: rgba(255,255,255,0.1); padding: 20px; border-radius: 8px; backdrop-filter: blur(10px);">
+                            <h4 style="color: white; text-align: center;">⚠️ O QUE ATRASOU</h4>
+                            <ul>
+                                <li>Escalonamento para gestão muito lento</li>
+                                <li>Falta de playbook específico para o tipo de ataque</li>
+                                <li>Dificuldade em acessar logs em tempo real</li>
+                                <li>Decisões tomadas sem todas as informações</li>
+                                <li>Comunicação com usuários finais insuficiente</li>
+                            </ul>
+                        </div>
+                        
+                        <div style="background-color: rgba(255,255,255,0.1); padding: 20px; border-radius: 8px; backdrop-filter: blur(10px);">
+                            <h4 style="color: white; text-align: center;">❌ FILTROS QUE FALHARAM</h4>
+                            <ul>
+                                <li>WAF não detectou padrão específico</li>
+                                <li>Thresholds de alerta muito altos</li>
+                                <li>Rate limiting não configurado para endpoint crítico</li>
+                                <li>IPS não atualizado com assinaturas recentes</li>
+                                <li>Monitoramento não abrangia todas as métricas</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 30px;">
+                        <div style="display: inline-block; background-color: rgba(255,255,255,0.2); padding: 15px 30px; border-radius: 8px;">
+                            <strong>🎯 RESULTADO DA REUNIÃO:</strong> 
+                            <span style="margin-left: 10px;">Plano de Ação com  itens e prazos definidos</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- PLANO DE AÇÃO -->
+                <div style="margin-top: 40px; background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.1);">
+                    <h3 style="color: var(--dark-blue); text-align: center; border-bottom: 3px solid var(--blue); padding-bottom: 15px;">
+                        📋 PLANO DE AÇÃO PÓS-INCIDENTE
+                    </h3>
+                    
+                    <table class="tabela-evidencias" style="margin-top: 20px;">
+                        <thead>
+                            <tr>
+                                <th width="5%">ID</th>
+                                <th width="35%">AÇÃO DE MELHORIA</th>
+                                <th width="20%">RESPONSÁVEL</th>
+                                <th width="15%">PRAZO</th>
+                                <th width="15%">STATUS</th>
+                                <th width="10%">PRIORIDADE</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="text-align: center; font-weight: bold;">001</td>
+                                <td>Ajustar thresholds de alerta para 70% do link (atual: 90%)</td>
+                                <td>Equipe de Monitoramento</td>
+                                <td>48h</td>
+                                <td style="text-align: center;">
+                                    <span style="background-color: #FF9800; color: white; padding: 3px 10px; border-radius: 12px; font-size: 0.85em;">EM ANDAMENTO</span>
+                                </td>
+                                <td style="text-align: center;">
+                                    <span style="color: #F44336; font-weight: bold;">ALTA</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="text-align: center; font-weight: bold;">002</td>
+                                <td>Atualizar assinaturas do WAF com padrões do ataque</td>
+                                <td>Segurança da Informação</td>
+                                <td>7 dias</td>
+                                <td style="text-align: center;">
+                                    <span style="background-color: #4CAF50; color: white; padding: 3px 10px; border-radius: 12px; font-size: 0.85em;">CONCLUÍDO</span>
+                                </td>
+                                <td style="text-align: center;">
+                                    <span style="color: #F44336; font-weight: bold;">ALTA</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="text-align: center; font-weight: bold;">003</td>
+                                <td>Criar playbook específico para ataques de amplificação DNS</td>
+                                <td>CSIRT</td>
+                                <td>14 dias</td>
+                                <td style="text-align: center;">
+                                    <span style="background-color: #2196F3; color: white; padding: 3px 10px; border-radius: 12px; font-size: 0.85em;">PENDENTE</span>
+                                </td>
+                                <td style="text-align: center;">
+                                    <span style="color: #FF9800; font-weight: bold;">MÉDIA</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="text-align: center; font-weight: bold;">004</td>
+                                <td>Implementar rate limiting no endpoint /api/search</td>
+                                <td>Administradores de Sistema</td>
+                                <td>72h</td>
+                                <td style="text-align: center;">
+                                    <span style="background-color: #4CAF50; color: white; padding: 3px 10px; border-radius: 12px; font-size: 0.85em;">CONCLUÍDO</span>
+                                </td>
+                                <td style="text-align: center;">
+                                    <span style="color: #F44336; font-weight: bold;">ALTA</span>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="text-align: center; font-weight: bold;">005</td>
+                                <td>Revisar e atualizar lista de contatos de emergência</td>
+                                <td>Gestor de Infraestrutura</td>
+                                <td>5 dias</td>
+                                <td style="text-align: center;">
+                                    <span style="background-color: #FF9800; color: white; padding: 3px 10px; border-radius: 12px; font-size: 0.85em;">EM ANDAMENTO</span>
+                                </td>
+                                <td style="text-align: center;">
+                                    <span style="color: #FF9800; font-weight: bold;">MÉDIA</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="6" style="text-align: center; padding: 15px; background-color: #f8f9fa;">
+                                    <strong>Total de ações:</strong>  | <strong>Concluídas:</strong>  | <strong>Em andamento:</strong>  | <strong>Pendentes:</strong> 
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                    
+                    <div style="margin-top: 30px; text-align: center;">
+                        <p style="font-style: italic; color: #666;">
+                            <strong>Nota:</strong> As melhorias devem ser incorporadas na revisão das políticas de continuidade de negócios 
+                            e no hardening (fortalecimento) da rede, garantindo que a organização esteja mais resiliente contra futuras ameaças.
+                        </p>
+                    </div>
+                </div>
+                
+                <!-- CONFORMIDADE NORMATIVA -->
+                <div style="margin-top: 40px; background-color: #f9f9f9; padding: 30px; border-radius: 10px; border: 2px solid #9C27B0;">
+                    <h3 style="color: #9C27B0; text-align: center; margin-top: 0;">🏛️ CONFORMIDADE NORMATIVA</h3>
+                    <p style="text-align: center; font-size: 1.1em; margin-bottom: 25px;">
+                        A adoção de frameworks internacionais não é apenas uma formalidade, mas uma <strong>necessidade estratégica</strong> 
+                        para a Governança de TI da universidade.
+                    </p>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 20px;">
+                        
+                        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-top: 4px solid #2196F3;">
+                            <div style="text-align: center; margin-bottom: 15px;">
+                                <div style="width: 60px; height: 60px; background-color: #2196F3; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;">
+                                    <span style="color: white; font-weight: bold; font-size: 1.2em;">ISO</span>
+                                </div>
+                            </div>
+                            <h4 style="color: #2196F3; text-align: center;">ISO/IEC 22301</h4>
+                            <p style="text-align: center; font-size: 0.95em;">
+                                <strong>Resiliência Operacional</strong><br>
+                                Estabelece requisitos para que a UFRGS mantenha serviços críticos (SEI, Moodle) mesmo sob ataques.
+                            </p>
+                        </div>
+                        
+                        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-top: 4px solid #4CAF50;">
+                            <div style="text-align: center; margin-bottom: 15px;">
+                                <div style="width: 60px; height: 60px; background-color: #4CAF50; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;">
+                                    <span style="color: white; font-weight: bold; font-size: 1.2em;">ISO</span>
+                                </div>
+                            </div>
+                            <h4 style="color: #4CAF50; text-align: center;">ISO/IEC 27001:2022</h4>
+                            <p style="text-align: center; font-size: 0.95em;">
+                                <strong>Controle 8.20</strong><br>
+                                Orienta implementação de filtros de borda (Rate Limiting, CDN) para proteção contra tráfego malicioso.
+                            </p>
+                        </div>
+                        
+                        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-top: 4px solid #FF9800;">
+                            <div style="text-align: center; margin-bottom: 15px;">
+                                <div style="width: 60px; height: 60px; background-color: #FF9800; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;">
+                                    <span style="color: white; font-weight: bold; font-size: 1.2em;">NIST</span>
+                                </div>
+                            </div>
+                            <h4 style="color: #FF9800; text-align: center;">NIST SP 800-61r2</h4>
+                            <p style="text-align: center; font-size: 0.95em;">
+                                <strong>Padronização da Resposta</strong><br>
+                                Fornece roteiro metodológico para o TRI, evitando decisões improvisadas sob pressão.
+                            </p>
+                        </div>
+                        
+                        <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); border-top: 4px solid #9C27B0;">
+                            <div style="text-align: center; margin-bottom: 15px;">
+                                <div style="width: 60px; height: 60px; background-color: #9C27B0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;">
+                                    <span style="color: white; font-weight: bold; font-size: 1.2em;">💰</span>
+                                </div>
+                            </div>
+                            <h4 style="color: #9C27B0; text-align: center;">Mitigação de Riscos Financeiros</h4>
+                            <p style="text-align: center; font-size: 0.95em;">
+                                Reduz probabilidade de incidentes críticos, protegendo o orçamento institucional contra perdas previstas.
+                            </p>
+                        </div>
+                        
+                    </div>
+                    
+                    <div style="margin-top: 30px; text-align: center;">
+                        <div style="display: inline-block; background-color: #9C27B0; color: white; padding: 12px 25px; border-radius: 25px; font-weight: bold;">
+                            <i class="fas fa-shield-alt" style="margin-right: 10px;"></i>
+                            BENEFÍCIO DA CONFORMIDADE: Operação acadêmica protegida contra paralisia total
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- FIGURA 4: CICLO DE RESPOSTA A INCIDENTES DO NIST -->
+                <div style="margin-top: 40px; background-color: white; padding: 30px; border-radius: 10px; border: 2px solid #666; box-shadow: 0 4px 15px rgba(0,0,0,0.1); font-family: Arial, sans-serif;">
+    <h3 style="color: #002d5b; text-align: center; margin-top: 0;">
+        <i class="fas fa-chart-cycle" style="margin-right: 10px;"></i>
+        CICLO DE RESPOSTA DO NIST
+    </h3>
+
+    <div style="display: flex; justify-content: center; align-items: center; margin-top: 25px; flex-wrap: wrap; gap: 40px;">
+
+        <div style="position: relative; width: 340px; height: 340px; flex-shrink: 0;">
+            <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 50%; border: 12px solid #e0e0e0; box-sizing: border-box;"></div>
+
+            <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;">
+                
+                <div style="position: absolute; top: -20px; left: 50%; transform: translateX(-50%); text-align: center; width: 110px;">
+                    <div style="background-color: #28a745; color: white; border-radius: 50%; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; margin: 0 auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-size: 20px;">
+                        <strong>1</strong>
+                    </div>
+                    <div style="margin-top: 8px; font-weight: bold; font-size: 13px;">Preparação</div>
+                </div>
+
+                <div style="position: absolute; top: 50%; right: -45px; transform: translateY(-50%); text-align: center; width: 110px;">
+                    <div style="background-color: #fd7e14; color: white; border-radius: 50%; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; margin: 0 auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-size: 20px;">
+                        <strong>2</strong>
+                    </div>
+                    <div style="margin-top: 8px; font-weight: bold; font-size: 13px;">Detecção &<br>Análise</div>
+                </div>
+
+                <div style="position: absolute; bottom: -35px; left: 50%; transform: translateX(-50%); text-align: center; width: 140px;">
+                    <div style="background-color: #dc3545; color: white; border-radius: 50%; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; margin: 0 auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-size: 20px;">
+                        <strong>3</strong>
+                    </div>
+                    <div style="margin-top: 8px; font-weight: bold; font-size: 13px;">Contenção, Erradicação & Recuperação</div>
+                </div>
+
+                <div style="position: absolute; top: 50%; left: -45px; transform: translateY(-50%); text-align: center; width: 110px;">
+                    <div style="background-color: #007bff; color: white; border-radius: 50%; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; margin: 0 auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-size: 20px;">
+                        <strong>4</strong>
+                    </div>
+                    <div style="margin-top: 8px; font-weight: bold; font-size: 13px;">Atividades<br>Pós-Incidente</div>
+                </div>
+            </div>
+
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: #002d5b; color: white; width: 90px; height: 90px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; text-align: center; font-size: 11px; padding: 5px; box-sizing: border-box; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);">
+                MELHORIA CONTÍNUA
+            </div>
+        </div>
+
+        <div style="max-width: 400px; padding: 25px; background-color: #f8f9fa; border-radius: 8px; flex-grow: 1;">
+            <h4 style="color: #002d5b; margin-top: 0;">Ciclo de Melhoria Contínua do NIST</h4>
+            <p style="font-size: 14px; line-height: 1.5;">O framework do NIST estabelece um ciclo contínuo de quatro fases que se alimentam mutuamente:</p>
+            
+            <ol style="margin-top: 15px; font-size: 14px; line-height: 1.6;">
+                <li><strong>Preparação:</strong> Desenvolver políticas, planos e procedimentos</li>
+                <li><strong>Detecção & Análise:</strong> Identificar e caracterizar incidentes</li>
+                <li><strong>Contenção, Erradicação & Recuperação:</strong> Resposta imediata e restauração</li>
+                <li><strong>Atividades Pós-Incidente:</strong> Aprendizado e melhoria dos processos</li>
+            </ol>
+            
+            <div style="margin-top: 20px; padding: 15px; background-color: #e8f4ff; border-radius: 6px; font-size: 14px;">
+                <strong>🎯 Objetivo do ciclo:</strong> Cada incidente deve resultar em uma infraestrutura mais resiliente do que antes.
+            </div>
+        </div>
+    </div>
+
+    <div style="text-align: center; margin-top: 40px;">
+        <p style="font-style: italic; color: #666; font-size: 12px;">
+            <strong>Fonte:</strong> NIST Special Publication 800-61 Revision 2 - Computer Security Incident Handling Guide
+        </p>
+    </div>
+</div>
+
+<div style="margin-top: 20px; background: linear-gradient(135deg, #434343 0%, #000000 100%); color: white; padding: 35px; border-radius: 10px; font-family: Arial, sans-serif;">
+    <h3 style="color: white; text-align: center; margin-top: 0;">📄 RELATÓRIO FINAL DO INCIDENTE</h3>
+    
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; margin-top: 25px;">
+        <div style="text-align: center;">
+            <div style="font-size: 2.5em; margin-bottom: 10px;">📊</div>
+            <div style="font-weight: bold;">Análise Quantitativa</div>
+            <div style="font-size: 0.85em; margin-top: 5px; opacity: 0.9;">Dados, métricas, impactos mensuráveis</div>
+        </div>
+        <div style="text-align: center;">
+            <div style="font-size: 2.5em; margin-bottom: 10px;">🔍</div>
+            <div style="font-weight: bold;">Análise Qualitativa</div>
+            <div style="font-size: 0.85em; margin-top: 5px; opacity: 0.9;">Causas raiz, processos, decisões</div>
+        </div>
+        <div style="text-align: center;">
+            <div style="font-size: 2.5em; margin-bottom: 10px;">🎯</div>
+            <div style="font-weight: bold;">Plano de Ação</div>
+            <div style="font-size: 0.85em; margin-top: 5px; opacity: 0.9;">Melhorias, prazos, responsáveis</div>
+        </div>
+        <div style="text-align: center;">
+            <div style="font-size: 2.5em; margin-bottom: 10px;">🔄</div>
+            <div style="font-weight: bold;">Integração com Ciclo</div>
+            <div style="font-size: 0.85em; margin-top: 5px; opacity: 0.9;">Feedbacks para fase de Preparação</div>
+        </div>
+    </div>
+    
+    <div style="text-align: center; margin-top: 30px;">
+        <div style="display: inline-block; background-color: rgba(255,255,255,0.15); padding: 25px; border-radius: 8px; max-width: 600px; width: 100%; box-sizing: border-box;">
+            <h4 style="color: white; margin-top: 0; border-bottom: 1px solid rgba(255,255,255,0.3); padding-bottom: 10px;">✅ FASE PÓS-INCIDENTE CONCLUÍDA QUANDO:</h4>
+            <ol style="text-align: left; margin-top: 15px; font-size: 14px; line-height: 1.6; list-style-type: none; padding: 0;">
+                <li style="margin-bottom: 8px;">🔹 Relatório final do incidente foi elaborado e aprovado</li>
+                <li style="margin-bottom: 8px;">🔹 Plano de ação com prazos definidos foi estabelecido</li>
+                <li style="margin-bottom: 8px;">🔹 Lições aprendidas foram documentadas e compartilhadas</li>
+                <li style="margin-bottom: 8px;">🔹 Melhorias foram incorporadas aos processos existentes</li>
+                <li style="margin-bottom: 8px;">🔹 Conformidade com frameworks foi verificada e atestada</li>
+            </ol>
+        </div>
+    </div>
+    
+    <div style="text-align: center; margin-top: 30px;">
+        <button onclick="gerarRelatorio()" style="background-color: #4CAF50; color: white; border: none; padding: 15px 30px; border-radius: 25px; font-size: 1.1em; cursor: pointer; font-weight: bold;">
+            <i class="fas fa-file-download" style="margin-right: 10px;"></i>
+            GERAR RELATÓRIO FINAL
+        </button>
+    </div>
+</div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="nav-bar">
+        <button class="nav-btn c1" onclick="showPhase('fase1')">Preparação</button>
+        <button class="nav-btn c2" onclick="showPhase('fase2')">Detecção</button>
+        <button class="nav-btn c3" onclick="showPhase('fase3')">Contenção</button>
+        <button class="nav-btn c4" onclick="showPhase('fase4')">Erradicação</button>
+        <button class="nav-btn c5" onclick="showPhase('fase5')">Recuperação</button>
+        <button class="nav-btn c6" onclick="showPhase('fase6')">Pós-Incidente</button>
+    </div>
+
+    <script>
+        // Variável para controlar a fase atual
+        let currentPhase = 'principal';
+
+        function showPhase(id) {
+            // Esconder todas as fases
+            document.querySelectorAll('.content-card').forEach(c => c.classList.remove('active'));
+            
+            // Mostrar a fase selecionada
+            document.getElementById(id).classList.add('active');
+            
+            // Mostrar botão de voltar (exceto se for principal)
+            const backBtn = document.getElementById('backButton');
+            if (id !== 'principal') {
+                backBtn.classList.add('show');
+                currentPhase = id;
+            } else {
+                backBtn.classList.remove('show');
+            }
+            
+            // Fechar dropdown PDF se aberto
+            closePDFMenu();
+            
+            // Scroll para o topo
+            document.querySelector('.viewport').scrollTop = 0;
+        }
+
+        function showPrincipal() {
+            showPhase('principal');
+        }
+
+        function toggleDetails(id) {
+            const el = document.getElementById(id);
+            el.style.display = (el.style.display === 'block') ? 'none' : 'block';
+        }
+
+        function toggleOSI() {
+            const modal = document.getElementById("osiModal");
+            modal.style.display = (modal.style.display === "flex") ? "none" : "flex";
+        }
+
+        // Menu Hamburguer para PDF
+        function togglePDFMenu() {
+            const dropdown = document.getElementById("pdfDropdown");
+            dropdown.classList.toggle("show");
+        }
+
+        function closePDFMenu() {
+            document.getElementById("pdfDropdown").classList.remove("show");
+        }
+
+        // Fechar menu PDF ao clicar fora
+        window.onclick = function(event) {
+            if (!event.target.matches('.pdf-toggle') && !event.target.closest('.pdf-toggle')) {
+                closePDFMenu();
+            }
+        }
+
+        // Função para gerar e baixar PDF de cada fase
+        function downloadPDF(fase) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Mapear nomes das fases
+            const faseNomes = {
+                'fase1': 'Preparação',
+                'fase2': 'Detecção',
+                'fase3': 'Contenção',
+                'fase4': 'Erradicação',
+                'fase5': 'Recuperação',
+                'fase6': 'Pós-Incidente',
+                'completo': 'Guia Completo'
+            };
+            
+            const nomeFase = faseNomes[fase] || fase;
+            
+            // Configurações do documento
+            doc.setFontSize(20);
+            doc.setTextColor(0, 0, 128);
+            doc.text(`Tratamento de Incidentes DoS/DDoS`, 20, 20);
+            
+            doc.setFontSize(16);
+            doc.setTextColor(0, 0, 0);
+            doc.text(`Fase: ${nomeFase}`, 20, 35);
+            
+            doc.setFontSize(12);
+            doc.setTextColor(100, 100, 100);
+            doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 20, 45);
+            
+            // Conteúdo específico de cada fase
+            let conteudo = [];
+            
+            if (fase === 'completo') {
+                conteudo = [
+                    'Guia Completo de Tratamento de Incidentes DoS/DDoS',
+                    '',
+                    'FASE 1: PREPARAÇÃO',
+                    '- Proteção de borda e CDN',
+                    '- Mapeamento de banda',
+                    '- Plano de redundância',
+                    '- Acordos de SLA',
+                    '',
+                    'FASE 2: DETECÇÃO',
+                    '- Sinais de alerta',
+                    '- Análise de tráfego',
+                    '- Validação do incidente',
+                    '- Classificação de gravidade',
+                    '',
+                    'FASE 3: CONTENÇÃO',
+                    '- Isolamento do tráfego malicioso',
+                    '- Ativação de filtros',
+                    '- Comunicação com ISP',
+                    '- Redirecionamento de tráfego',
+                    '',
+                    'FASE 4: ERRADICAÇÃO',
+                    '- Identificação de vetores',
+                    '- Correção de vulnerabilidades',
+                    '- Bloqueio de fontes maliciosas',
+                    '- Atualização de sistemas',
+                    '',
+                    'FASE 5: RECUPERAÇÃO',
+                    '- Restauração de serviços',
+                    '- Validação de integridade',
+                    '- Monitoramento intensivo',
+                    '- Comunicação final',
+                    '',
+                    'FASE 6: PÓS-INCIDENTE',
+                    '- Análise do incidente',
+                    '- Lições aprendidas',
+                    '- Atualização de processos',
+                    '- Relatório final'
+                ];
+            } else {
+                // Conteúdo específico para cada fase
+                const conteudosFase = {
+                    'fase1': [
+                        'FASE 1: PREPARAÇÃO',
+                        '',
+                        'Esta fase é a fundação de toda resposta a incidentes DoS/DDoS.',
+                        'Realizada ANTES de qualquer ataque ocorrer.',
+                        '',
+                        'PRINCIPAIS AÇÕES:',
+                        '1. Proteção de Borda e CDN',
+                        '2. Mapeamento de Banda',
+                        '3. Plano de Redundância',
+                        '4. Acordos de SLA',
+                        '',
+                        'OBJETIVO: Construir resiliência e preparar recursos.'
+                    ],
+                    'fase2': [
+                        'FASE 2: DETECÇÃO',
+                        '',
+                        'Identificação, validação e caracterização do ataque.',
+                        '',
+                        'SINAIS DE ALERTA:',
+                        '- Anomalias de volume',
+                        '- Indisponibilidade de serviços',
+                        '- Exaustão de recursos',
+                        '- Padrões de tráfego incomuns',
+                        '',
+                        'NÍVEIS DE GRAVIDADE:',
+                        '1. Baixo - Serviço degradado',
+                        '2. Médio - Serviço parcialmente indisponível',
+                        '3. Alto - Serviço completamente indisponível'
+                    ],
+                    'fase3': [
+                        'FASE 3: CONTENÇÃO',
+                        '',
+                        'Ação imediata para limitar danos e restaurar serviços.',
+                        '',
+                        'AÇÕES PRIORITÁRIAS:',
+                        '1. Isolamento do tráfego malicioso',
+                        '2. Ativação de filtros anti-DDoS',
+                        '3. Comunicação com provedor de internet',
+                        '4. Redirecionamento para serviços de limpeza',
+                        '',
+                        'EVIDÊNCIAS A COLETAR:',
+                        '- Logs de tráfego',
+                        '- Logs de firewall',
+                        '- Registros NetFlow',
+                        '- Relatórios do ISP'
+                    ],
+                    'fase4': [
+                        'FASE 4: ERRADICAÇÃO',
+                        '',
+                        'Eliminação completa das causas do ataque.',
+                        '',
+                        'PROCEDIMENTOS:',
+                        '1. Identificar vetores remanescentes',
+                        '2. Corrigir vulnerabilidades exploradas',
+                        '3. Eliminar conexões persistentes',
+                        '4. Bloquear vetores de amplificação',
+                        '',
+                        'VERIFICAÇÕES:',
+                        '- Remoção de pontos de exposição',
+                        '- Validação de credenciais',
+                        '- Teste de controles de acesso',
+                        '- Bloqueio de vetores'
+                    ],
+                    'fase5': [
+                        'FASE 5: RECUPERAÇÃO',
+                        '',
+                        'Retorno seguro às operações normais.',
+                        '',
+                        'ETAPAS:',
+                        '1. Restauração gradual de serviços',
+                        '2. Verificação de integridade',
+                        '3. Monitoramento estendido 24/7',
+                        '4. Remoção de regras temporárias',
+                        '',
+                        'TESTES DE VALIDAÇÃO:',
+                        '- Teste de carga',
+                        '- Validação de filtros anti-DDoS',
+                        '- Teste de regras de firewall',
+                        '- Auditoria de logs'
+                    ],
+                    'fase6': [
+                        'FASE 6: PÓS-INCIDENTE',
+                        '',
+                        'Aprendizado e melhoria contínua.',
+                        '',
+                        'AÇÕES:',
+                        '1. Documentar o incidente',
+                        '2. Identificar pontos de melhoria',
+                        '3. Atualizar processos',
+                        '4. Gerar relatório final',
+                        '',
+                        'LIÇÕES APRENDIDAS:',
+                        '- O que funcionou bem',
+                        '- O que atrasou a resposta',
+                        '- Filtros que falharam',
+                        '- Melhorias necessárias'
+                    ]
+                };
+                
+                conteudo = conteudosFase[fase] || ['Conteúdo não disponível para esta fase.'];
+            }
+            
+            // Adicionar conteúdo ao PDF
+            let yPos = 60;
+            doc.setFontSize(11);
+            doc.setTextColor(0, 0, 0);
+            
+            conteudo.forEach((linha, index) => {
+                if (yPos > 270) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+                
+                if (linha.includes('FASE') || linha.includes('PRINCIPAIS') || linha.includes('SINAIS') || 
+                    linha.includes('AÇÕES') || linha.includes('OBJETIVO') || linha.includes('NÍVEIS') || 
+                    linha.includes('PROCEDIMENTOS') || linha.includes('VERIFICAÇÕES') || 
+                    linha.includes('ETAPAS') || linha.includes('TESTES') || linha.includes('LIÇÕES')) {
+                    doc.setFont(undefined, 'bold');
+                } else {
+                    doc.setFont(undefined, 'normal');
+                }
+                
+                doc.text(linha, 20, yPos);
+                yPos += 8;
+            });
+            
+            // Rodapé
+            doc.setFontSize(10);
+            doc.setTextColor(150, 150, 150);
+            doc.text(` Tratamento de Incidentes de Segurança - UFRGS`, 105, 285, null, null, 'center');
+            
+            // Salvar o PDF
+            const nomeArquivo = `Tratamento_DDoS_${nomeFase.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+            doc.save(nomeArquivo);
+            
+            // Fechar menu
+            closePDFMenu();
+            
+            // Feedback para o usuário
+            console.log(`PDF "${nomeArquivo}" gerado com sucesso!`);
+        }
+
+        // Função para gerar relatório completo
+        function gerarRelatorio() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            // Cabeçalho
+            doc.setFontSize(22);
+            doc.setTextColor(0, 0, 128);
+            doc.text('RELATÓRIO DE INCIDENTE', 105, 20, null, null, 'center');
+            doc.text('ATAQUE DoS/DDoS', 105, 30, null, null, 'center');
+            
+            doc.setFontSize(14);
+            doc.setTextColor(0, 0, 0);
+            doc.text('UNIVERSIDADE FEDERAL DO RIO GRANDE DO SUL', 105, 45, null, null, 'center');
+            
+            doc.setFontSize(12);
+            doc.setTextColor(100, 100, 100);
+            doc.text(`Data do Incidente: ${new Date().toLocaleDateString('pt-BR')}`, 105, 55, null, null, 'center');
+            doc.text(`Relatório Gerado em: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}`, 105, 62, null, null, 'center');
+            
+            // Linha divisória
+            doc.setDrawColor(200, 200, 200);
+            doc.line(20, 70, 190, 70);
+            
+            let yPos = 80;
+            
+            // Resumo Executivo
+            doc.setFontSize(16);
+            doc.setTextColor(0, 0, 0);
+            doc.text('RESUMO EXECUTIVO', 20, yPos);
+            yPos += 10;
+            
+            doc.setFontSize(11);
+            doc.text('Este relatório documenta o incidente de segurança ocorrido na infraestrutura', 20, yPos);
+            yPos += 7;
+            doc.text('de rede da UFRGS, envolvendo um ataque DoS/DDoS que afetou a disponibilidade', 20, yPos);
+            yPos += 7;
+            doc.text('de serviços críticos. O documento detalha todas as fases do tratamento,', 20, yPos);
+            yPos += 7;
+            doc.text('ações tomadas, lições aprendidas e recomendações para melhorias futuras.', 20, yPos);
+            yPos += 15;
+            
+            // Impacto
+            doc.setFontSize(14);
+            doc.text('IMPACTO DO INCIDENTE', 20, yPos);
+            yPos += 10;
+            
+            const impacto = [
+    '• Duração total: ________________________________________________',
+    '• Serviços afetados: ____________________________________________',
+    '• Usuários impactados: __________________________________________',
+    '• Perda de produtividade: _______________________________________',
+    '• Custo estimado (se aplicável): ________________________________'
+];
+
+doc.setFontSize(11);
+impacto.forEach(item => {
+    doc.text(item, 25, yPos);
+    yPos += 7;
+            });
+            yPos += 10;
+            
+            // Cronologia das Ações
+            doc.addPage();
+            yPos = 20;
+            
+            doc.setFontSize(16);
+            doc.text('CRONOLOGIA DAS AÇÕES', 20, yPos);
+            yPos += 10;
+            
+            const cronologia = [
+                { hora: 'Horário', acao: 'Cronologia' },
+                { hora: 'Hora __:__', acao: 'Detecção do pico de tráfego anormal' },
+                { hora: 'Hora __:__', acao: 'Validação do ataque DDoS' },
+                { hora: 'Hora __:__', acao: 'Acionamento da equipe de segurança' },
+                { hora: 'Hora __:__', acao: 'Ativação de filtros anti-DDoS' },
+                { hora: 'Hora __:__', acao: 'Comunicação com provedor de internet' },
+                { hora: 'Hora __:__', acao: 'Redirecionamento para scrubbing center' },
+                { hora: 'Hora __:__', acao: 'Pico máximo do ataque ' },
+                { hora: 'Hora __:__', acao: 'Eficácia das medidas de mitigação' },
+                { hora: 'Hora __:__', acao: 'Restauração gradual dos serviços' },
+                { hora: 'Hora __:__', acao: 'Serviços completamente restaurados' }
+            ];
+            
+            doc.setFontSize(11);
+            cronologia.forEach(item => {
+                if (yPos > 270) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+                
+                doc.setFont(undefined, 'bold');
+                doc.text(item.hora, 20, yPos);
+                doc.setFont(undefined, 'normal');
+                doc.text(item.acao, 40, yPos);
+                yPos += 10;
+            });
+            
+            // Lições Aprendidas
+            doc.addPage();
+            yPos = 20;
+            
+            doc.setFontSize(16);
+            doc.text('LIÇÕES APRENDIDAS', 20, yPos);
+            yPos += 10;
+            
+            const licoes = {
+                'O QUE FUNCIONOU BEM': [
+                    '• Detecção automática pelo sistema de monitoramento',
+                    '• Resposta rápida do provedor de mitigação DDoS',
+                    '• Comunicação eficiente entre as equipes técnicas',
+                    '• Plano de contingência bem executado'
+                ],
+                'ÁREAS DE MELHORIA': [
+                    '• Thresholds de alerta muito altos',
+                    '• Playbooks desatualizados para ataques específicos',
+                    '• Comunicação com usuários finais insuficiente',
+                    '• Falta de treinamento específico em DDoS'
+                ],
+                'RECOMENDAÇÕES': [
+                    '• Revisar e ajustar todos os thresholds de alerta',
+                    '• Atualizar playbooks com base neste incidente',
+                    '• Implementar sistema de comunicação em massa',
+                    '• Realizar treinamento trimestral da equipe',
+                    '• Revisar contratos com provedores de mitigação'
+                ]
+            };
+            
+            doc.setFontSize(12);
+            Object.entries(licoes).forEach(([titulo, itens]) => {
+                if (yPos > 250) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+                
+                doc.setFont(undefined, 'bold');
+                doc.setTextColor(0, 0, 128);
+                doc.text(titulo, 20, yPos);
+                yPos += 8;
+                
+                doc.setFont(undefined, 'normal');
+                doc.setTextColor(0, 0, 0);
+                
+                itens.forEach(item => {
+                    doc.text(item, 25, yPos);
+                    yPos += 7;
+                });
+                
+                yPos += 5;
+            });
+            
+            // Conclusão
+            if (yPos > 250) {
+                doc.addPage();
+                yPos = 20;
+            }
+            
+            doc.setFontSize(14);
+            doc.setTextColor(0, 0, 0);
+            doc.text('CONCLUSÃO', 20, yPos);
+            yPos += 10;
+            
+            doc.setFontSize(11);
+            const conclusao = [
+                'O incidente foi tratado com sucesso seguindo as fases estabelecidas no',
+                'procedimento de resposta a incidentes. A colaboração entre as equipes e',
+                'a existência de processos definidos foram fatores críticos para o sucesso.',
+                '',
+                'As lições aprendidas serão incorporadas aos processos existentes,',
+                'fortalecendo a resiliência da infraestrutura contra futuros ataques.',
+                '',
+                'Recomenda-se a revisão trimestral deste relatório e a atualização',
+                'constante dos planos de resposta baseada em novas ameaças identificadas.'
+            ];
+            
+            conclusao.forEach(paragrafo => {
+                if (paragrafo) {
+                    doc.text(paragrafo, 20, yPos);
+                    yPos += 7;
+                } else {
+                    yPos += 4;
+                }
+            });
+            
+            // Assinaturas
+            yPos += 15;
+            doc.setFontSize(12);
+            doc.setFont(undefined, 'bold');
+            doc.text('RESPONSÁVEIS:', 20, yPos);
+            yPos += 15;
+            
+            const responsaveis = [
+                { nome: 'Coordenador de Segurança da Informação', area: 'CSIRT' },
+                { nome: 'Gerente de Infraestrutura de Rede', area: 'NOC' },
+                { nome: 'Administrador de Sistemas', area: 'SysAdmin' }
+            ];
+            
+            responsaveis.forEach(resp => {
+                doc.text(`__________________________`, 20, yPos);
+                doc.text(`${resp.nome}`, 20, yPos + 6);
+                doc.text(`${resp.area}`, 20, yPos + 12);
+                yPos += 30;
+            });
+            
+            // Rodapé final
+            doc.setFontSize(10);
+            doc.setTextColor(150, 150, 150);
+            doc.text('Documento confidencial - Uso interno da UFRGS', 105, 285, null, null, 'center');
+            doc.text(`Página ${doc.internal.getNumberOfPages()} de ${doc.internal.getNumberOfPages()}`, 105, 290, null, null, 'center');
+            
+            // Salvar o relatório
+            const nomeArquivo = `Relatorio_Incidente_DDoS_UFRGS_${new Date().toISOString().split('T')[0]}.pdf`;
+            doc.save(nomeArquivo);
+            
+            // Feedback para o usuário
+            console.log(`Relatório "${nomeArquivo}" gerado com sucesso!`);
+            alert('Relatório final do incidente gerado com sucesso!\n\nO documento inclui:\n• Resumo executivo\n• Impacto do incidente\n• Cronologia das ações\n• Lições aprendidas\n• Recomendações de melhoria\n\nO relatório foi salvo automaticamente.');
+        }
+
+        // Mostrar fase ao carregar a página (para testes)
+        document.addEventListener('DOMContentLoaded', function() {
+            // Verificar se há uma fase específica na URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const fase = urlParams.get('fase');
+            if (fase && document.getElementById(fase)) {
+                showPhase(fase);
+            }
+        });
+    </script>
+</body>
+</html>
